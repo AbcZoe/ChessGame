@@ -77,6 +77,8 @@ public class ChessBoard : MonoBehaviour
                 {
                     if (ContainsValidMove(availableMoves, currentHoverdTile))
                         tileRenderers[currentHoverdTile.x, currentHoverdTile.y].material = moveEreaMaterial;
+                    else if (ContainsValidAttack(availableAttacks, currentHoverdTile))
+                        tileRenderers[currentHoverdTile.x, currentHoverdTile.y].material = attackEreaMaterial;
                     else
                         SetTileDefaultMaterial(currentHoverdTile.x, currentHoverdTile.y);
                 }
@@ -98,7 +100,9 @@ public class ChessBoard : MonoBehaviour
                         currentlyDragging = chessPieces[hitPosition.x, hitPosition.y];
 
                         //Get a list of available moves for this piece
-                        availableMoves = currentlyDragging.GetAvailableMoves(ref chessPieces, Tile_COUNT_X, Tile_COUNT_Y);HighlightTiles();
+                        availableMoves = currentlyDragging.GetAvailableMoves(ref chessPieces, Tile_COUNT_X, Tile_COUNT_Y);
+                        availableAttacks = currentlyDragging.GetAvailableAttacks(ref chessPieces, Tile_COUNT_X, Tile_COUNT_Y);
+                        HighlightTiles();
                     }
                 }
             }
@@ -126,8 +130,13 @@ public class ChessBoard : MonoBehaviour
                 // 如果這個格子是可移動格子
                 if (ContainsValidMove(availableMoves, currentHoverdTile))
                 {
-                    // 恢復成高亮材質
+                    // 恢復成移動材質
                     tileRenderers[currentHoverdTile.x, currentHoverdTile.y].material = moveEreaMaterial;
+                }
+                else if(ContainsValidAttack(availableAttacks, currentHoverdTile))
+                {
+                    // 恢復成攻擊材質
+                    tileRenderers[currentHoverdTile.x, currentHoverdTile.y].material = attackEreaMaterial;
                 }
                 else
                 {
@@ -275,6 +284,15 @@ public class ChessBoard : MonoBehaviour
                 tileRenderers[pos.x, pos.y].material = moveEreaMaterial;
             }
         }
+        // 遍歷所有可攻擊位置
+        foreach (Vector2Int pos in availableAttacks)
+        {
+            // 檢查位置是否有效
+            if (pos.x >= 0 && pos.x < Tile_COUNT_X && pos.y >= 0 && pos.y < Tile_COUNT_Y)
+            {
+                tileRenderers[pos.x, pos.y].material = attackEreaMaterial;
+            }
+        }
     }
     private void RemoveHighlightTile()
     {
@@ -287,9 +305,20 @@ public class ChessBoard : MonoBehaviour
                 SetTileDefaultMaterial(pos.x, pos.y);
             }
         }
+        // 遍歷所有可攻擊位置
+        foreach (Vector2Int pos in availableAttacks)
+        {
+            // 檢查位置是否有效
+            if (pos.x >= 0 && pos.x < Tile_COUNT_X && pos.y >= 0 && pos.y < Tile_COUNT_Y)
+            {
+                SetTileDefaultMaterial(pos.x, pos.y);
+            }
+        }
 
         // 清空可移動格子
         availableMoves.Clear();
+        // 清空可攻擊格子
+        availableAttacks.Clear();
     }
 
     // ===== Operations =====
@@ -310,44 +339,73 @@ public class ChessBoard : MonoBehaviour
         //Contains 會使用 Vector2Int 的 Equals 方法 比較元素是否相同。
         return moves.Contains(pos);
     }
+    public bool ContainsValidAttack(List<Vector2Int> attacks, Vector2Int pos)
+    {
+        //Contains 會使用 Vector2Int 的 Equals 方法 比較元素是否相同。
+        return attacks.Contains(pos);
+    }
     private bool MoveTo(ChessPiece cp, int x, int y)
     {
-        if(!ContainsValidMove(availableMoves, new Vector2Int(x, y)))
-            return false; //Invalid Move
+        Vector2Int targetPos = new Vector2Int(x, y);
+        ChessPiece targetPiece = chessPieces[x, y];
 
-        Vector2Int previousPosition = new Vector2Int(cp.currentX, cp.currentY);
-        //Is there another piece on the target position?
-        if (chessPieces[x, y] != null) { ChessPiece ocp = chessPieces[x, y]; 
-            //Is it an enemy piece?
-            if (cp.team == ocp.team) { 
-                //Invalid move
-                return false; 
-            } 
-            //If its the enemy piece,kill it
-            if(ocp.team == 0) { 
-                deadFirstTeam.Add(ocp);
-                ocp.SetScale(Vector3.one * deathSize);
-                ocp.SetPosition( 
-                    new Vector3(
-                        8 * tileSize, yOffset, -1 * tileSize ) 
-                    + new Vector3(tileSize/2,0,tileSize/2) 
-                    + (Vector3.forward * deathSpacing * deadFirstTeam.Count * 0.5f) 
-                    ); 
-            } 
-            else {
-                deadSecondTeam.Add(ocp);
-                ocp.SetScale(Vector3.one * deathSize, true);
-                ocp.SetPosition( 
-                    new Vector3(
-                        -1 * tileSize, yOffset, 8 * tileSize) 
-                    + new Vector3(tileSize / 2, 0, tileSize / 2) 
-                    + (Vector3.back * deathSpacing * deadSecondTeam.Count * 0.5f) 
-                    ); 
-            } 
-        } 
-        chessPieces[x, y] = cp; 
-        chessPieces[previousPosition.x, previousPosition.y] = null; 
-        PositionSinglePiece(x, y, true); return true; 
+        // 移動格子判斷
+        if (ContainsValidMove(availableMoves, targetPos))
+        {
+            // 移動到空格子
+            if (targetPiece == null)
+            {
+                Vector2Int previousPosition = new Vector2Int(cp.currentX, cp.currentY);
+                chessPieces[x, y] = cp;
+                chessPieces[previousPosition.x, previousPosition.y] = null;
+                PositionSinglePiece(x, y, true);
+                return true;
+            }
+            else
+            {
+                // 移動格子上有棋子，不能移動
+                return false;
+            }
+        }
+        // 攻擊格子判斷
+        else if (ContainsValidAttack(availableAttacks, targetPos))
+        {
+            // 攻擊格子上必須有敵方棋子
+            if (targetPiece == null || targetPiece.team == cp.team)
+                return false;
+
+            // 吃掉敵方棋子
+            if (targetPiece.team == 0)
+            {
+                deadFirstTeam.Add(targetPiece);
+                targetPiece.SetScale(Vector3.one * deathSize);
+                targetPiece.SetPosition(
+                    new Vector3(8 * tileSize, yOffset, -1 * tileSize)
+                    + new Vector3(tileSize / 2, 0, tileSize / 2)
+                    + (Vector3.forward * deathSpacing * deadFirstTeam.Count * 0.5f)
+                );
+            }
+            else
+            {
+                deadSecondTeam.Add(targetPiece);
+                targetPiece.SetScale(Vector3.one * deathSize, true);
+                targetPiece.SetPosition(
+                    new Vector3(-1 * tileSize, yOffset, 8 * tileSize)
+                    + new Vector3(tileSize / 2, 0, tileSize / 2)
+                    + (Vector3.back * deathSpacing * deadSecondTeam.Count * 0.5f)
+                );
+            }
+
+            // 移動棋子到新位置
+            Vector2Int previousPosition = new Vector2Int(cp.currentX, cp.currentY);
+            chessPieces[x, y] = cp;
+            chessPieces[previousPosition.x, previousPosition.y] = null;
+            PositionSinglePiece(x, y, true);
+            return true;
+        }
+
+        // 不在可移動或攻擊格子內
+        return false;
     }
 
 }

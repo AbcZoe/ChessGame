@@ -40,6 +40,10 @@ public class ChessPiece : MonoBehaviour
     {
         return new List<Vector2Int>();
     }
+    public virtual List<Vector2Int> GetAvailableAttacks(ref ChessPiece[,] board, int tileCountX, int tileCountY)
+    {
+        return new List<Vector2Int>();
+    }
 
 
     //virtual 表示這個方法「可以被子類別（繼承這個類別的類別）覆寫（override）」。
