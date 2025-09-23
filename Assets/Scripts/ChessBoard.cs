@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using Unity.VisualScripting;
 using UnityEngine;
 using static ChessPiece;
@@ -18,7 +19,8 @@ public class ChessBoard : MonoBehaviour
     [SerializeField] private float yOffset = 0.2f;
     [SerializeField] private float deathSize = 50f;
     [SerializeField] private float deathSpacing = 0.4f;
-    [SerializeField]private float dragOffset = 1f;
+    [SerializeField] private float dragOffset = 1f;
+    [SerializeField] private GameObject victoryScreen;
 
     [Header("Prefabs & Materials")]
     [SerializeField] private GameObject[] prefabs;
@@ -29,8 +31,8 @@ public class ChessBoard : MonoBehaviour
     private ChessPiece currentlyDragging;
     private List<Vector2Int> availableMoves = new List<Vector2Int>();
     private List<Vector2Int> availableAttacks = new List<Vector2Int>();
-    private List<ChessPiece> deadFirstTeam = new List<ChessPiece>();
-    private List<ChessPiece> deadSecondTeam = new List<ChessPiece>();
+    private List<ChessPiece> deadTeam_1 = new List<ChessPiece>();
+    private List<ChessPiece> deadTeam_2 = new List<ChessPiece>();
     private const int Tile_COUNT_X = 8;
     private const int Tile_COUNT_Y = 8;
     private GameObject[,] tiles;
@@ -38,10 +40,13 @@ public class ChessBoard : MonoBehaviour
     private Camera currentCamera;
     private Vector2Int currentHoverdTile;
     private Vector2Int currentSelectedTile;
+    private bool isTeam_1_Turn; //true = team 1 , false = team 2
 
 
     private void Awake()
     {
+        isTeam_1_Turn = true;
+
         GenerateGrid(1, Tile_COUNT_X, Tile_COUNT_Y);
         SpawnAllPiece();
         PositionAllPiece();
@@ -91,11 +96,10 @@ public class ChessBoard : MonoBehaviour
             //If we press down on the mouse
             if (Input.GetMouseButtonDown(0))
             { 
-                Debug.Log("Hold");
                 if (chessPieces[hitPosition.x, hitPosition.y] != null) 
                 {
                     //It is our turn?
-                    if (true)
+                    if ((chessPieces[hitPosition.x,hitPosition.y].team == 0 && isTeam_1_Turn) || (chessPieces[hitPosition.x, hitPosition.y].team == 1 && !isTeam_1_Turn))
                     {
                         currentlyDragging = chessPieces[hitPosition.x, hitPosition.y];
 
@@ -119,7 +123,6 @@ public class ChessBoard : MonoBehaviour
                 currentlyDragging = null;
                 RemoveHighlightTile();
             }
-
 
         }
         else
@@ -321,6 +324,60 @@ public class ChessBoard : MonoBehaviour
         availableAttacks.Clear();
     }
 
+    // ===== Check Mate =====
+    private void CheckMate(int team)
+    {
+        DisplayVictory(team);
+    }
+    private void DisplayVictory(int winnerTeam)
+    {
+        victoryScreen.SetActive(true);
+        TMP_Text messageText = victoryScreen.transform.Find("Message").GetComponent<TMP_Text>();
+
+        messageText.text = "Team " + (winnerTeam+1) + " Wins!";
+    }
+    public void OnResetButton()
+    {
+        victoryScreen.SetActive(false);
+
+        currentlyDragging = null;
+        availableMoves.Clear();
+        availableAttacks.Clear();
+
+        // 清除棋盤上的棋子
+        for (int x = 0; x < Tile_COUNT_X; x++)
+        {
+            for(int y = 0; y < Tile_COUNT_Y; y++)
+            {
+                if (chessPieces[x,y] != null)
+                    Destroy(chessPieces[x,y].gameObject);
+                chessPieces[x, y] = null;
+            }
+        }
+
+        // 清除死亡區棋子
+        for (int i=0; i < deadTeam_1.Count; i++) 
+            Destroy(deadTeam_1[i].gameObject);
+        for (int i=0;i < deadTeam_2.Count; i++)
+            Destroy(deadTeam_2[i].gameObject);
+
+        deadTeam_1.Clear();
+        deadTeam_2.Clear();
+
+        // 重新生成棋子
+        SpawnAllPiece();
+        PositionAllPiece();
+        isTeam_1_Turn = true;
+    }
+    public void OnExitButton()
+    {
+        #if UNITY_EDITOR
+                UnityEditor.EditorApplication.isPlaying = false;  // 停止遊戲模式
+        #else
+            Application.Quit();  // 退出遊戲（Build 出來才有效）
+        #endif
+    }
+
     // ===== Operations =====
     private Vector2Int GetHitTileIndex(GameObject hitInfo)
     {
@@ -359,6 +416,9 @@ public class ChessBoard : MonoBehaviour
                 chessPieces[x, y] = cp;
                 chessPieces[previousPosition.x, previousPosition.y] = null;
                 PositionSinglePiece(x, y, true);
+
+                isTeam_1_Turn = !isTeam_1_Turn; //移動後換隊伍
+
                 return true;
             }
             else
@@ -377,22 +437,28 @@ public class ChessBoard : MonoBehaviour
             // 吃掉敵方棋子
             if (targetPiece.team == 0)
             {
-                deadFirstTeam.Add(targetPiece);
+                if (targetPiece.type == ChessPieceType.People)
+                    CheckMate(1);
+
+                deadTeam_1.Add(targetPiece);
                 targetPiece.SetScale(Vector3.one * deathSize);
                 targetPiece.SetPosition(
                     new Vector3(8 * tileSize, yOffset, -1 * tileSize)
                     + new Vector3(tileSize / 2, 0, tileSize / 2)
-                    + (Vector3.forward * deathSpacing * deadFirstTeam.Count * 0.5f)
+                    + (Vector3.forward * deathSpacing * deadTeam_1.Count * 0.5f)
                 );
             }
             else
             {
-                deadSecondTeam.Add(targetPiece);
+                if (targetPiece.type == ChessPieceType.People)
+                    CheckMate(0);
+
+                deadTeam_2.Add(targetPiece);
                 targetPiece.SetScale(Vector3.one * deathSize, true);
                 targetPiece.SetPosition(
                     new Vector3(-1 * tileSize, yOffset, 8 * tileSize)
                     + new Vector3(tileSize / 2, 0, tileSize / 2)
-                    + (Vector3.back * deathSpacing * deadSecondTeam.Count * 0.5f)
+                    + (Vector3.back * deathSpacing * deadTeam_2.Count * 0.5f)
                 );
             }
 
@@ -401,6 +467,9 @@ public class ChessBoard : MonoBehaviour
             chessPieces[x, y] = cp;
             chessPieces[previousPosition.x, previousPosition.y] = null;
             PositionSinglePiece(x, y, true);
+
+            isTeam_1_Turn = !isTeam_1_Turn; //攻擊後換隊伍
+
             return true;
         }
 
