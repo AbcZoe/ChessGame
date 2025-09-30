@@ -20,11 +20,12 @@ public class ChessBoard : MonoBehaviour
     [SerializeField] private float deathSize = 50f;
     [SerializeField] private float deathSpacing = 0.4f;
     [SerializeField] private float dragOffset = 1f;
-    [SerializeField] private GameObject victoryScreen;
+    TMP_Text messageText;
 
     [Header("Prefabs & Materials")]
     [SerializeField] private GameObject[] prefabs;
     [SerializeField] private Material[] teamMaterials;
+    [SerializeField] private Material[] KingMaterials;
 
     //LOGIC
     private ChessPiece[,] chessPieces;
@@ -41,6 +42,7 @@ public class ChessBoard : MonoBehaviour
     private Vector2Int currentHoverdTile;
     private Vector2Int currentSelectedTile;
     private bool isTeam_1_Turn; //true = team 1 , false = team 2
+    private int selectingKingTeam = 0; // 0 = Team1 選王, 1 = Team2 選王, -1 = 已選完
 
 
     private void Awake()
@@ -50,6 +52,8 @@ public class ChessBoard : MonoBehaviour
         GenerateGrid(1, Tile_COUNT_X, Tile_COUNT_Y);
         SpawnAllPiece();
         PositionAllPiece();
+
+        UIManager.Instance.ShowMessage("Team 1, please select a piece as your King!");
     }
     private void Update()
     {
@@ -95,15 +99,23 @@ public class ChessBoard : MonoBehaviour
 
             //If we press down on the mouse
             if (Input.GetMouseButtonDown(0))
-            { 
-                if (chessPieces[hitPosition.x, hitPosition.y] != null) 
+            {
+                if (chessPieces[hitPosition.x, hitPosition.y] != null)
                 {
-                    //It is our turn?
-                    if ((chessPieces[hitPosition.x,hitPosition.y].team == 0 && isTeam_1_Turn) || (chessPieces[hitPosition.x, hitPosition.y].team == 1 && !isTeam_1_Turn))
-                    {
-                        currentlyDragging = chessPieces[hitPosition.x, hitPosition.y];
+                    ChessPiece clickedPiece = chessPieces[hitPosition.x, hitPosition.y];
 
-                        //Get a list of available moves for this piece
+                    // === 選王模式 ===
+                    if (selectingKingTeam != -1)
+                    {
+                        SelectKingPiece(clickedPiece);
+                        return; // 選王時不繼續其他流程
+                    }
+
+                    // === 一般遊戲模式 ===
+                    if ((clickedPiece.team == 0 && isTeam_1_Turn) || (clickedPiece.team == 1 && !isTeam_1_Turn))
+                    {
+                        currentlyDragging = clickedPiece;
+
                         availableMoves = currentlyDragging.GetAvailableMoves(ref chessPieces, Tile_COUNT_X, Tile_COUNT_Y);
                         availableAttacks = currentlyDragging.GetAvailableAttacks(ref chessPieces, Tile_COUNT_X, Tile_COUNT_Y);
                         HighlightTiles();
@@ -325,20 +337,49 @@ public class ChessBoard : MonoBehaviour
     }
 
     // ===== Check Mate =====
+    private void SelectKingPiece(ChessPiece cp)
+    {
+        // 如果還沒開始選
+        if (selectingKingTeam == 0)
+            UIManager.Instance.ShowMessage("Team 1, please select a piece as your King!");
+        else if (selectingKingTeam == 1)
+            UIManager.Instance.ShowMessage("Team 2, please select a piece as your King!");
+
+        // 檢查是否選到對方棋子
+        if (cp.team != selectingKingTeam)
+        {
+            UIManager.Instance.ShowMessage("You cannot select the opponent's piece as King!", 2f);
+            return;
+        }
+
+        // 設為王
+        cp.SetKing(true);
+
+        // 改材質
+        if (KingMaterials != null && cp.team < KingMaterials.Length)
+            cp.GetComponent<MeshRenderer>().material = KingMaterials[cp.team];
+
+        // 換隊伍選王 or 遊戲開始
+        if (selectingKingTeam == 0)
+        {
+            selectingKingTeam = 1;
+            UIManager.Instance.ShowMessage("Team 2, please select a piece as your King!");
+        }
+        else
+        {
+            selectingKingTeam = -1; // 兩隊都選完了
+            UIManager.Instance.ShowMessage("Both teams have chosen their Kings. The game starts!", 2f);
+            UIManager.Instance.ShowCurrentTurn(0);
+        }
+    }
+
     private void CheckMate(int team)
     {
-        DisplayVictory(team);
-    }
-    private void DisplayVictory(int winnerTeam)
-    {
-        victoryScreen.SetActive(true);
-        TMP_Text messageText = victoryScreen.transform.Find("Message").GetComponent<TMP_Text>();
-
-        messageText.text = "Team " + (winnerTeam+1) + " Wins!";
+        UIManager.Instance.ShowVictory(team);
     }
     public void OnResetButton()
     {
-        victoryScreen.SetActive(false);
+        UIManager.Instance.HideVictory();
 
         currentlyDragging = null;
         availableMoves.Clear();
@@ -367,7 +408,18 @@ public class ChessBoard : MonoBehaviour
         // 重新生成棋子
         SpawnAllPiece();
         PositionAllPiece();
+        // 重置回合
         isTeam_1_Turn = true;
+        // === 重置選王狀態 ===
+        selectingKingTeam = 0; // 先由 Team1 選王
+        foreach (var piece in chessPieces)
+        {
+            if (piece != null)
+                piece.isKing = false; // 清掉之前的王
+        }
+
+        UIManager.Instance.HideRoundText();
+        UIManager.Instance.ShowMessage("Team 1, please select a piece as your King!");
     }
     public void OnExitButton()
     {
@@ -418,6 +470,7 @@ public class ChessBoard : MonoBehaviour
                 PositionSinglePiece(x, y, true);
 
                 isTeam_1_Turn = !isTeam_1_Turn; //移動後換隊伍
+                UIManager.Instance.ShowCurrentTurn(isTeam_1_Turn ? 0 : 1);
 
                 return true;
             }
@@ -437,7 +490,7 @@ public class ChessBoard : MonoBehaviour
             // 吃掉敵方棋子
             if (targetPiece.team == 0)
             {
-                if (targetPiece.type == ChessPieceType.People)
+                if (targetPiece.isKing)
                     CheckMate(1);
 
                 deadTeam_1.Add(targetPiece);
@@ -450,7 +503,7 @@ public class ChessBoard : MonoBehaviour
             }
             else
             {
-                if (targetPiece.type == ChessPieceType.People)
+                if (targetPiece.isKing)
                     CheckMate(0);
 
                 deadTeam_2.Add(targetPiece);
@@ -469,6 +522,7 @@ public class ChessBoard : MonoBehaviour
             PositionSinglePiece(x, y, true);
 
             isTeam_1_Turn = !isTeam_1_Turn; //攻擊後換隊伍
+            UIManager.Instance.ShowCurrentTurn(isTeam_1_Turn ? 0 : 1);
 
             return true;
         }

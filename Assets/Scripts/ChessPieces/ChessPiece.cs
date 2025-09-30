@@ -20,6 +20,8 @@ public class ChessPiece : MonoBehaviour
     public int currentY;
     public ChessPieceType type;
 
+    public bool isKing = false;
+
     private Vector3 desiredPosition;
     private Vector3 desiredScale = Vector3.one;
     public float baseScale = 1f; // Inspector 可調比例大小
@@ -33,6 +35,11 @@ public class ChessPiece : MonoBehaviour
     {
         transform.position = Vector3.Lerp(transform.position, desiredPosition, Time.deltaTime * 10);
         transform.localScale = Vector3.Lerp(transform.localScale, desiredScale, Time.deltaTime * 10);
+    }
+
+    public void SetKing(bool value)
+    {
+        isKing = value;
     }
 
     // ==== 取得可移動、攻擊位置 (子類別覆寫) ====

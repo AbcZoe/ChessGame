@@ -81,3 +81,6 @@ MonoBehaviour:
   currentX: 0
   currentY: 0
   type: 0
+  isKing: 0
+  kingTextPrefab: {fileID: 2020885063785660280, guid: b41f453457bb6034d819c6d2b9d26ce9, type: 3}
+  baseScale: 1
