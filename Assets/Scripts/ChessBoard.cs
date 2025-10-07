@@ -52,7 +52,10 @@ public class ChessBoard : MonoBehaviour
         GenerateGrid(1, Tile_COUNT_X, Tile_COUNT_Y);
         SpawnAllPiece();
         PositionAllPiece();
-
+ 
+    }
+    private void Start()
+    {
         UIManager.Instance.ShowMessage("Team 1, please select a piece as your King!");
     }
     private void Update()
@@ -237,31 +240,35 @@ public class ChessBoard : MonoBehaviour
     private void SpawnAllPiece()
     {
         chessPieces = new ChessPiece[Tile_COUNT_X, Tile_COUNT_Y];
-        int FirstTeam = 0;
-        int SecondTeam = 1;
+        int firstTeam = 0;
+        int secondTeam = 1;
 
-        //Spawn Team 1
-        chessPieces[1, 0] = SpawnSinglePiece(ChessPieceType.Beast, FirstTeam);
-        chessPieces[2, 0] = SpawnSinglePiece(ChessPieceType.People, FirstTeam);
-        chessPieces[3, 0] = SpawnSinglePiece(ChessPieceType.Sword, FirstTeam);
-        chessPieces[4, 0] = SpawnSinglePiece(ChessPieceType.Wall, FirstTeam);
-        chessPieces[5, 0] = SpawnSinglePiece(ChessPieceType.Cup, FirstTeam);
-        chessPieces[6, 0] = SpawnSinglePiece(ChessPieceType.Flag, FirstTeam);
-        //Spawn Team 2
-        chessPieces[1, 7] = SpawnSinglePiece(ChessPieceType.Beast, SecondTeam);
-        chessPieces[2, 7] = SpawnSinglePiece(ChessPieceType.People, SecondTeam);
-        chessPieces[3, 7] = SpawnSinglePiece(ChessPieceType.Sword, SecondTeam);
-        chessPieces[4, 7] = SpawnSinglePiece(ChessPieceType.Wall, SecondTeam);
-        chessPieces[5, 7] = SpawnSinglePiece(ChessPieceType.Cup, SecondTeam);
-        chessPieces[6, 7] = SpawnSinglePiece(ChessPieceType.Flag, SecondTeam);
+        // Team 1
+        chessPieces[1, 0] = SpawnSinglePiece(ChessPieceType.Beast, firstTeam);
+        chessPieces[2, 0] = SpawnSinglePiece(ChessPieceType.People, firstTeam);
+        chessPieces[3, 0] = SpawnSinglePiece(ChessPieceType.Sword, firstTeam);
+        chessPieces[4, 0] = SpawnSinglePiece(ChessPieceType.Wall, firstTeam);
+        chessPieces[5, 0] = SpawnSinglePiece(ChessPieceType.Cup, firstTeam);
+        chessPieces[6, 0] = SpawnSinglePiece(ChessPieceType.Flag, firstTeam);
 
+        // Team 2
+        chessPieces[1, 7] = SpawnSinglePiece(ChessPieceType.Beast, secondTeam);
+        chessPieces[2, 7] = SpawnSinglePiece(ChessPieceType.People, secondTeam);
+        chessPieces[3, 7] = SpawnSinglePiece(ChessPieceType.Sword, secondTeam);
+        chessPieces[4, 7] = SpawnSinglePiece(ChessPieceType.Wall, secondTeam);
+        chessPieces[5, 7] = SpawnSinglePiece(ChessPieceType.Cup, secondTeam);
+        chessPieces[6, 7] = SpawnSinglePiece(ChessPieceType.Flag, secondTeam);
     }
-    private ChessPiece SpawnSinglePiece(ChessPieceType type , int team)
+    private ChessPiece SpawnSinglePiece(ChessPieceType type, int team)
     {
-        ChessPiece cp = Instantiate(prefabs[(int)type - 1], transform).GetComponent<ChessPiece>();
+        // 從 Pool 取得棋子
+        ChessPiece cp = ChessPiecePool.Instance.GetPiece(type, transform);
 
         cp.type = type;
         cp.team = team;
+        cp.isKing = false;
+
+        // 設置材質
         cp.GetComponent<MeshRenderer>().material = teamMaterials[team];
 
         return cp;
@@ -372,12 +379,11 @@ public class ChessBoard : MonoBehaviour
             UIManager.Instance.ShowCurrentTurn(0);
         }
     }
-
     private void CheckMate(int team)
     {
         UIManager.Instance.ShowVictory(team);
     }
-    public void OnResetButton()
+    public void ResetBoard()
     {
         UIManager.Instance.HideVictory();
 
@@ -385,49 +391,48 @@ public class ChessBoard : MonoBehaviour
         availableMoves.Clear();
         availableAttacks.Clear();
 
-        // 清除棋盤上的棋子
+        // 回收棋盤上的所有棋子
         for (int x = 0; x < Tile_COUNT_X; x++)
         {
-            for(int y = 0; y < Tile_COUNT_Y; y++)
+            for (int y = 0; y < Tile_COUNT_Y; y++)
             {
-                if (chessPieces[x,y] != null)
-                    Destroy(chessPieces[x,y].gameObject);
-                chessPieces[x, y] = null;
+                if (chessPieces[x, y] != null)
+                {
+                    ChessPiecePool.Instance.ReturnPiece(chessPieces[x, y]);
+                    chessPieces[x, y] = null;
+                }
             }
         }
 
-        // 清除死亡區棋子
-        for (int i=0; i < deadTeam_1.Count; i++) 
-            Destroy(deadTeam_1[i].gameObject);
-        for (int i=0;i < deadTeam_2.Count; i++)
-            Destroy(deadTeam_2[i].gameObject);
+        // 回收死亡區棋子
+        foreach (var piece in deadTeam_1)
+            ChessPiecePool.Instance.ReturnPiece(piece);
+        foreach (var piece in deadTeam_2)
+            ChessPiecePool.Instance.ReturnPiece(piece);
 
         deadTeam_1.Clear();
         deadTeam_2.Clear();
 
-        // 重新生成棋子
+        // 重新生成棋子（從 Pool 取得）
         SpawnAllPiece();
         PositionAllPiece();
+
         // 重置回合
         isTeam_1_Turn = true;
+
         // === 重置選王狀態 ===
-        selectingKingTeam = 0; // 先由 Team1 選王
+        selectingKingTeam = 0;
         foreach (var piece in chessPieces)
         {
             if (piece != null)
-                piece.isKing = false; // 清掉之前的王
+                piece.isKing = false;
         }
 
         UIManager.Instance.HideRoundText();
         UIManager.Instance.ShowMessage("Team 1, please select a piece as your King!");
-    }
-    public void OnExitButton()
-    {
-        #if UNITY_EDITOR
-                UnityEditor.EditorApplication.isPlaying = false;  // 停止遊戲模式
-        #else
-            Application.Quit();  // 退出遊戲（Build 出來才有效）
-        #endif
+
+        // 重新發牌（如有卡牌系統）
+        StartCoroutine(CardSystem.Instance.DealStartingCards());
     }
 
     // ===== Operations =====

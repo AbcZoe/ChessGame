@@ -37,6 +37,15 @@ public class ChessPiece : MonoBehaviour
         transform.localScale = Vector3.Lerp(transform.localScale, desiredScale, Time.deltaTime * 10);
     }
 
+    public void ResetPiece()
+    {
+        isKing = false;
+        team = 0;
+        type = ChessPieceType.None;
+        desiredScale = Vector3.one * baseScale;
+        // 如果有材質、顏色等可以在這裡重置
+    }
+
     public void SetKing(bool value)
     {
         isKing = value;

@@ -23,6 +23,7 @@ public class UIManager : MonoBehaviour
         else Destroy(gameObject);
     }
 
+    // ===== 提示訊息與畫面 =====
     // 短暫訊息
     public void ShowMessage(string text, float autoHideTime = 0f)
     {
@@ -34,7 +35,6 @@ public class UIManager : MonoBehaviour
         if (autoHideTime > 0f)
             StartCoroutine(HideMessageText(autoHideTime));
     }
-
     private IEnumerator HideMessageText(float seconds)
     {
         yield return new WaitForSeconds(seconds);
@@ -62,10 +62,30 @@ public class UIManager : MonoBehaviour
         victoryPanel.SetActive(true);
         victoryText.text = $"Team {winnerTeam + 1} Wins!";
     }
-
     public void HideVictory()
     {
         if (victoryPanel != null)
             victoryPanel.SetActive(false);
     }
+
+    // ===== 按鈕事件 =====
+    // 重置遊戲
+    public void OnResetButton()
+    {
+        ChessBoard board = FindAnyObjectByType<ChessBoard>();
+        if (board != null)
+        {
+            board.ResetBoard();
+        }
+    }
+    // 離開遊戲
+    public void OnExitButton()
+    {
+    #if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false; // 在 Editor 停止遊戲
+    #else
+            Application.Quit(); // Build 出來時關閉應用程式
+    #endif
+    }
+
 }
