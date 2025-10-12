@@ -12,6 +12,7 @@ public class UIManager : MonoBehaviour
 
     [Header("Persistent UI")]
     [SerializeField] private TMP_Text roundText;
+    [SerializeField] private TMP_Text CardDescription;
 
     [Header("Victory UI")]
     [SerializeField] private GameObject victoryPanel;
@@ -53,6 +54,17 @@ public class UIManager : MonoBehaviour
     {
         if (roundText != null)
             roundText.text = "";
+    }
+
+    public void ShowCardDescription(string text)
+    {
+        if (CardDescription != null)
+            CardDescription.text = text;
+    }
+    public void HideCardDescription()
+    {
+        if (CardDescription != null)
+            CardDescription.text = "";
     }
 
     // ³Ó§Qµe­±

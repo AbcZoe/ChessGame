@@ -9,6 +9,8 @@ public class HandView : MonoBehaviour
     [SerializeField] private SplineContainer SplineContainer;
     [SerializeField] private bool facePlayer = true;
 
+    [SerializeField] private float cardSpacing = 1f / 10f;
+
     private readonly List<CardView> cards = new();
 
     public IEnumerator AddCard(CardView cardView)
@@ -24,7 +26,6 @@ public class HandView : MonoBehaviour
     {
         if (cards.Count == 0) yield break;
 
-        float cardSpacing = 1f / 10f;
         float firstCardPosition = 0.5f - (cards.Count - 1) * cardSpacing / 2f;
         Spline spline = SplineContainer.Spline;
 
@@ -39,8 +40,9 @@ public class HandView : MonoBehaviour
 
             Vector3 direction = spline.EvaluateTangent(p);
             Quaternion targetRotation = Quaternion.LookRotation(direction, Vector3.up);
-            targetRotation *= Quaternion.Euler(0, -90, 0);
-            if (!facePlayer) targetRotation *= Quaternion.Euler(0, 180, 0);
+            //±ÛÂà½Õ¾ã
+            targetRotation *= Quaternion.Euler(-45, -90, 0);
+            if (!facePlayer) targetRotation *= Quaternion.Euler(-90, 180, 0);
 
             cards[i].transform
                 .DORotateQuaternion(targetRotation, duration)

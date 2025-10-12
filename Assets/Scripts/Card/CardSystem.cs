@@ -9,6 +9,9 @@ public class CardSystem : MonoBehaviour
     [SerializeField] private HandView player1Hand;
     [SerializeField] private HandView player2Hand;
 
+    [Header("卡片資料庫")]
+    [SerializeField] private CardDatabase cardDatabase;  // <-- 新增欄位
+
     [Header("開局設定")]
     [SerializeField] private int startCardCount = 3;   // 每位玩家開局卡片數量
     [SerializeField] private float dealInterval = 0.3f; // 發牌間隔
@@ -26,27 +29,38 @@ public class CardSystem : MonoBehaviour
 
     public IEnumerator DealStartingCards()
     {
-        // 先清空手牌（會回收到 Pool）
+        // 先清空手牌
         player1Hand.ClearHand();
         player2Hand.ClearHand();
 
         for (int i = 0; i < startCardCount; i++)
         {
-            // 玩家1
+            // 玩家 1
             CardView card1 = CardViewCreator.Instance.CreateCardView(
                 player1Hand.transform.position,
                 Quaternion.identity,
-                player1Hand.transform // 指定 parent 為 HandView
+                player1Hand.transform
             );
+
+            // 從資料庫中取一張隨機卡
+            CardData data1 = cardDatabase.GetRandomCard();
+            if (data1 != null)
+                card1.SetCardData(data1, 0);
+
             yield return player1Hand.StartCoroutine(player1Hand.AddCard(card1));
             yield return new WaitForSeconds(dealInterval);
 
-            // 玩家2
+            // 玩家 2
             CardView card2 = CardViewCreator.Instance.CreateCardView(
                 player2Hand.transform.position,
                 Quaternion.identity,
-                player2Hand.transform // 指定 parent 為 HandView
+                player2Hand.transform
             );
+
+            CardData data2 = cardDatabase.GetRandomCard();
+            if (data2 != null)
+                card2.SetCardData(data2, 1);
+
             yield return player2Hand.StartCoroutine(player2Hand.AddCard(card2));
             yield return new WaitForSeconds(dealInterval);
         }

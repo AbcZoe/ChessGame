@@ -9,6 +9,8 @@ using static UnityEditor.PlayerSettings;
 
 public class ChessBoard : MonoBehaviour
 {
+    public static ChessBoard Instance { get; private set; }
+
     [Header("Art References")]
     [SerializeField] private Material blackMaterial = null;    // 黑格材質
     [SerializeField] private Material whiteMaterial = null;    // 白格材質
@@ -44,9 +46,22 @@ public class ChessBoard : MonoBehaviour
     private bool isTeam_1_Turn; //true = team 1 , false = team 2
     private int selectingKingTeam = 0; // 0 = Team1 選王, 1 = Team2 選王, -1 = 已選完
 
+    //Use with CardSystem
+    public int CurrentTurnTeam => isTeam_1_Turn ? 0 : 1;
+    public int SelectingKingTeam => selectingKingTeam;
+    private bool isReselectingKing = false;
+
 
     private void Awake()
     {
+        // 單例設定
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
+
         isTeam_1_Turn = true;
 
         GenerateGrid(1, Tile_COUNT_X, Tile_COUNT_Y);
@@ -344,38 +359,56 @@ public class ChessBoard : MonoBehaviour
     }
 
     // ===== Check Mate =====
-    private void SelectKingPiece(ChessPiece cp)
+    public void SelectKingPiece(ChessPiece cp)
     {
-        // 如果還沒開始選
-        if (selectingKingTeam == 0)
-            UIManager.Instance.ShowMessage("Team 1, please select a piece as your King!");
-        else if (selectingKingTeam == 1)
-            UIManager.Instance.ShowMessage("Team 2, please select a piece as your King!");
+        // 檢查是否正在選王
+        if (selectingKingTeam == -1) return;
 
-        // 檢查是否選到對方棋子
+        // 只能選自己隊伍的棋子
         if (cp.team != selectingKingTeam)
         {
-            UIManager.Instance.ShowMessage("You cannot select the opponent's piece as King!", 2f);
+            UIManager.Instance.ShowMessage(
+                "You cannot select the opponent's piece as King!",
+                2f
+            );
             return;
         }
 
         // 設為王
         cp.SetKing(true);
-
-        // 改材質
         if (KingMaterials != null && cp.team < KingMaterials.Length)
             cp.GetComponent<MeshRenderer>().material = KingMaterials[cp.team];
 
-        // 換隊伍選王 or 遊戲開始
+        if (isReselectingKing)
+        {
+            // 使用重選王卡牌流程：選完立即結束
+            selectingKingTeam = -1;
+            isReselectingKing = false;
+            UIManager.Instance.ShowMessage(
+                $"Team {cp.team + 1} has reselected their King!",
+                2f
+            );
+            isReselectingKing = false;
+            SwitchTurn(); // 選完後直接換回合
+            return;
+        }
+
+        // 正常開局選王流程
         if (selectingKingTeam == 0)
         {
             selectingKingTeam = 1;
-            UIManager.Instance.ShowMessage("Team 2, please select a piece as your King!");
+            UIManager.Instance.ShowMessage(
+                "Team 2, please select a piece as your King!",
+                2f
+            );
         }
         else
         {
-            selectingKingTeam = -1; // 兩隊都選完了
-            UIManager.Instance.ShowMessage("Both teams have chosen their Kings. The game starts!", 2f);
+            selectingKingTeam = -1; // 兩隊都選完
+            UIManager.Instance.ShowMessage(
+                "Both teams have chosen their Kings. The game starts!",
+                2f
+            );
             UIManager.Instance.ShowCurrentTurn(0);
         }
     }
@@ -534,6 +567,36 @@ public class ChessBoard : MonoBehaviour
 
         // 不在可移動或攻擊格子內
         return false;
+    }
+    public void SwitchTurn()
+    {
+        isTeam_1_Turn = !isTeam_1_Turn;
+        UIManager.Instance.ShowCurrentTurn(CurrentTurnTeam);
+    }
+
+    // ===== Cards =====
+    public void ResetKingSelectionForCurrentTeam()
+    {
+        // 設定選王隊伍為當前回合隊伍
+        selectingKingTeam = CurrentTurnTeam;
+        isReselectingKing = true;
+
+        // 清除原本的王
+        for (int x = 0; x < Tile_COUNT_X; x++)
+        {
+            for (int y = 0; y < Tile_COUNT_Y; y++)
+            {
+                if (chessPieces[x, y] != null && chessPieces[x, y].team == selectingKingTeam)
+                {
+                    chessPieces[x, y].SetKing(false);
+                    // 重置材質回原本隊伍材質
+                    chessPieces[x, y].GetComponent<MeshRenderer>().material = teamMaterials[selectingKingTeam];
+                }
+            }
+        }
+
+        // 提示玩家重新選王
+        UIManager.Instance.ShowMessage($"Team {selectingKingTeam + 1}, please select a new King!", 2f);
     }
 
 }
