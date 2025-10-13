@@ -5,12 +5,12 @@ using UnityEngine;
 public enum ChessPieceType
 {
     None = 0,
-    Beast = 1,
-    People = 2,
-    Sword = 3,
-    Wall = 4,
-    Cup = 5,
-    Flag = 6
+    Bishop = 1,
+    Knight = 2,
+    King = 3,
+    Queen = 4,
+    Pawn = 5,
+    Rook = 6
 }
 
 public class ChessPiece : MonoBehaviour

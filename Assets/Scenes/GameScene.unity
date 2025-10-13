@@ -852,13 +852,6 @@ MonoBehaviour:
   deathSize: 21
   deathSpacing: 1
   dragOffset: 1
-  prefabs:
-  - {fileID: 2885608805676804911, guid: 45dad1cf784188b4c9ecf93d94796037, type: 3}
-  - {fileID: 4809484743746587574, guid: 348721d4c0024e64ebcf89676562bc29, type: 3}
-  - {fileID: 2109638448296108564, guid: 7000e90a43695ca4f8940e5070922f69, type: 3}
-  - {fileID: 7878745170473617573, guid: 4d645490f0cdd084d9a9e39bbeb8ae20, type: 3}
-  - {fileID: 3568276086994199512, guid: 508fc87794862b3499b581d082a2027e, type: 3}
-  - {fileID: 8378061931831713953, guid: 286ae8ef3e7bf94409fc45852feaaff9, type: 3}
   teamMaterials:
   - {fileID: 2100000, guid: 597d3779f1e1289438381193cc2dccde, type: 2}
   - {fileID: 2100000, guid: 48e6c17f2ab81024ea3329dac091eaa7, type: 2}
@@ -1600,12 +1593,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   chessPiecePrefabs:
-  - {fileID: 6322159805425879510, guid: 45dad1cf784188b4c9ecf93d94796037, type: 3}
-  - {fileID: 2171174526842142009, guid: 348721d4c0024e64ebcf89676562bc29, type: 3}
-  - {fileID: 7095610384565305771, guid: 7000e90a43695ca4f8940e5070922f69, type: 3}
-  - {fileID: 5084619098576052589, guid: 4d645490f0cdd084d9a9e39bbeb8ae20, type: 3}
-  - {fileID: 891383826026677824, guid: 508fc87794862b3499b581d082a2027e, type: 3}
-  - {fileID: 2672881560258314182, guid: 286ae8ef3e7bf94409fc45852feaaff9, type: 3}
+  - {fileID: 5949222955033480496, guid: 8a5da99937a70cf40b814d2f7d9d9ae5, type: 3}
+  - {fileID: 802489639505384774, guid: 17818a0886d63de418a631bf688bf6af, type: 3}
+  - {fileID: 4211373812644085991, guid: 93e94a64897d42b46a5f36d476383a39, type: 3}
+  - {fileID: 473290849217026395, guid: 3b90cb47b985e5443b7f8fc554b0a28f, type: 3}
+  - {fileID: 1946585086261810240, guid: 400f7837df412a244abd5e1b1da26ac7, type: 3}
+  - {fileID: 6507099306358124424, guid: cd75aa316d123b64ca3afb8644e02dc0, type: 3}
   initialCountPerType: 5
 --- !u!1 &821038954
 GameObject:

@@ -25,7 +25,6 @@ public class ChessBoard : MonoBehaviour
     TMP_Text messageText;
 
     [Header("Prefabs & Materials")]
-    [SerializeField] private GameObject[] prefabs;
     [SerializeField] private Material[] teamMaterials;
     [SerializeField] private Material[] KingMaterials;
 
@@ -258,21 +257,45 @@ public class ChessBoard : MonoBehaviour
         int firstTeam = 0;
         int secondTeam = 1;
 
-        // Team 1
-        chessPieces[1, 0] = SpawnSinglePiece(ChessPieceType.Beast, firstTeam);
-        chessPieces[2, 0] = SpawnSinglePiece(ChessPieceType.People, firstTeam);
-        chessPieces[3, 0] = SpawnSinglePiece(ChessPieceType.Sword, firstTeam);
-        chessPieces[4, 0] = SpawnSinglePiece(ChessPieceType.Wall, firstTeam);
-        chessPieces[5, 0] = SpawnSinglePiece(ChessPieceType.Cup, firstTeam);
-        chessPieces[6, 0] = SpawnSinglePiece(ChessPieceType.Flag, firstTeam);
+        List<Vector2Int> usedPositions = new List<Vector2Int>();
 
-        // Team 2
-        chessPieces[1, 7] = SpawnSinglePiece(ChessPieceType.Beast, secondTeam);
-        chessPieces[2, 7] = SpawnSinglePiece(ChessPieceType.People, secondTeam);
-        chessPieces[3, 7] = SpawnSinglePiece(ChessPieceType.Sword, secondTeam);
-        chessPieces[4, 7] = SpawnSinglePiece(ChessPieceType.Wall, secondTeam);
-        chessPieces[5, 7] = SpawnSinglePiece(ChessPieceType.Cup, secondTeam);
-        chessPieces[6, 7] = SpawnSinglePiece(ChessPieceType.Flag, secondTeam);
+        // 要生成的棋子類型（你可依需要增減）
+        ChessPieceType[] pieceTypes = {
+        ChessPieceType.King,
+        ChessPieceType.Queen,
+        ChessPieceType.Rook,
+        ChessPieceType.Bishop,
+        ChessPieceType.Knight,
+        ChessPieceType.Pawn
+    };
+
+        foreach (var type in pieceTypes)
+        {
+            Vector2Int pos = GetRandomEmptyPosition(usedPositions, 0, 1); // team1範圍 (y=0~1)
+            usedPositions.Add(pos);
+
+            // 生成 team1 棋子
+            chessPieces[pos.x, pos.y] = SpawnSinglePiece(type, firstTeam);
+
+            // 對稱座標（沿 Y 軸鏡像）
+            Vector2Int mirrorPos = new Vector2Int(pos.x, Tile_COUNT_Y - 1 - pos.y);
+
+            // 生成 team2 棋子
+            chessPieces[mirrorPos.x, mirrorPos.y] = SpawnSinglePiece(type, secondTeam);
+        }
+
+        PositionAllPiece();
+    }
+
+    // 隨機取得空格位置（限制在特定Y範圍）
+    private Vector2Int GetRandomEmptyPosition(List<Vector2Int> used, int minY, int maxY)
+    {
+        Vector2Int pos;
+        do
+        {
+            pos = new Vector2Int(UnityEngine.Random.Range(0, Tile_COUNT_X), UnityEngine.Random.Range(minY, maxY + 1));
+        } while (used.Contains(pos));
+        return pos;
     }
     private ChessPiece SpawnSinglePiece(ChessPieceType type, int team)
     {
@@ -496,36 +519,14 @@ public class ChessBoard : MonoBehaviour
         Vector2Int targetPos = new Vector2Int(x, y);
         ChessPiece targetPiece = chessPieces[x, y];
 
-        // 移動格子判斷
-        if (ContainsValidMove(availableMoves, targetPos))
-        {
-            // 移動到空格子
-            if (targetPiece == null)
-            {
-                Vector2Int previousPosition = new Vector2Int(cp.currentX, cp.currentY);
-                chessPieces[x, y] = cp;
-                chessPieces[previousPosition.x, previousPosition.y] = null;
-                PositionSinglePiece(x, y, true);
-
-                isTeam_1_Turn = !isTeam_1_Turn; //移動後換隊伍
-                UIManager.Instance.ShowCurrentTurn(isTeam_1_Turn ? 0 : 1);
-
-                return true;
-            }
-            else
-            {
-                // 移動格子上有棋子，不能移動
-                return false;
-            }
-        }
-        // 攻擊格子判斷
-        else if (ContainsValidAttack(availableAttacks, targetPos))
+        // === 攻擊判斷要先做！ ===
+        if (ContainsValidAttack(availableAttacks, targetPos))
         {
             // 攻擊格子上必須有敵方棋子
             if (targetPiece == null || targetPiece.team == cp.team)
                 return false;
 
-            // 吃掉敵方棋子
+            // 吃掉敵方棋子（同你原本邏輯）
             if (targetPiece.team == 0)
             {
                 if (targetPiece.isKing)
@@ -553,19 +554,34 @@ public class ChessBoard : MonoBehaviour
                 );
             }
 
-            // 移動棋子到新位置
+            // 攻擊後移動棋子
             Vector2Int previousPosition = new Vector2Int(cp.currentX, cp.currentY);
             chessPieces[x, y] = cp;
             chessPieces[previousPosition.x, previousPosition.y] = null;
             PositionSinglePiece(x, y, true);
 
-            isTeam_1_Turn = !isTeam_1_Turn; //攻擊後換隊伍
+            isTeam_1_Turn = !isTeam_1_Turn;
             UIManager.Instance.ShowCurrentTurn(isTeam_1_Turn ? 0 : 1);
-
             return true;
         }
 
-        // 不在可移動或攻擊格子內
+        // === 移動判斷（攻擊以外） ===
+        if (ContainsValidMove(availableMoves, targetPos))
+        {
+            if (targetPiece == null)
+            {
+                Vector2Int previousPosition = new Vector2Int(cp.currentX, cp.currentY);
+                chessPieces[x, y] = cp;
+                chessPieces[previousPosition.x, previousPosition.y] = null;
+                PositionSinglePiece(x, y, true);
+
+                isTeam_1_Turn = !isTeam_1_Turn;
+                UIManager.Instance.ShowCurrentTurn(isTeam_1_Turn ? 0 : 1);
+                return true;
+            }
+            return false;
+        }
+
         return false;
     }
     public void SwitchTurn()
