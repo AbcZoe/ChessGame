@@ -62,6 +62,7 @@ public class ChessPiecePool : Singleton<ChessPiecePool>
     {
         piece.gameObject.SetActive(false);
         piece.isKing = false;
+        piece.ResetPiece();
         piece.transform.parent = transform; // ¦^¨ì Pool ©³¤U
 
         if (!pool.ContainsKey(piece.type))

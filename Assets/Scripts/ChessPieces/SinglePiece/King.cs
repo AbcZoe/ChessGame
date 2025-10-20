@@ -3,50 +3,40 @@ using UnityEngine;
 
 public class King : ChessPiece
 {
+    private static readonly Vector2Int[] moveOffsets =
+    {
+        new(1, 0), new(-1, 0), new(0, 1), new(0, -1),
+        new(1, 1), new(1, -1), new(-1, 1), new(-1, -1)
+    };
+
     public override List<Vector2Int> GetAvailableMoves(ref ChessPiece[,] board, int tileCountX, int tileCountY)
     {
-        List<Vector2Int> moves = new List<Vector2Int>();
-
-        Vector2Int[] directions = {
-            Vector2Int.up, Vector2Int.down,
-            Vector2Int.left, Vector2Int.right,
-            new Vector2Int(1, 1), new Vector2Int(1, -1),
-            new Vector2Int(-1, 1), new Vector2Int(-1, -1)
-        };
-
-        foreach (var dir in directions)
+        List<Vector2Int> moves = new();
+        foreach (var offset in moveOffsets)
         {
-            Vector2Int pos = new Vector2Int(currentX + dir.x, currentY + dir.y);
-            if (!IsInsideBoard(pos, tileCountX, tileCountY)) continue;
+            Vector2Int pos = new(currentX + offset.x, currentY + offset.y);
+            if (!IsInsideBoard(pos, tileCountX, tileCountY))
+                continue;
 
-            ChessPiece target = board[pos.x, pos.y];
-            if (target == null || target.team != team)
+            if (board[pos.x, pos.y] == null)
                 moves.Add(pos);
         }
-
         return moves;
     }
 
     public override List<Vector2Int> GetAvailableAttacks(ref ChessPiece[,] board, int tileCountX, int tileCountY)
     {
-        List<Vector2Int> attacks = new List<Vector2Int>();
-        Vector2Int[] directions = {
-            Vector2Int.up, Vector2Int.down,
-            Vector2Int.left, Vector2Int.right,
-            new Vector2Int(1, 1), new Vector2Int(1, -1),
-            new Vector2Int(-1, 1), new Vector2Int(-1, -1)
-        };
-
-        foreach (var dir in directions)
+        List<Vector2Int> attacks = new();
+        foreach (var offset in moveOffsets)
         {
-            Vector2Int pos = new Vector2Int(currentX + dir.x, currentY + dir.y);
-            if (!IsInsideBoard(pos, tileCountX, tileCountY)) continue;
+            Vector2Int pos = new(currentX + offset.x, currentY + offset.y);
+            if (!IsInsideBoard(pos, tileCountX, tileCountY))
+                continue;
 
             ChessPiece target = board[pos.x, pos.y];
             if (target != null && target.team != team)
                 attacks.Add(pos);
         }
-
         return attacks;
     }
 

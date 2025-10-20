@@ -1,59 +1,76 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using TMPro;
-using Unity.VisualScripting;
 using UnityEngine;
 using static ChessPiece;
-using static UnityEditor.PlayerSettings;
+
+public enum KingSelectionState
+{
+    None,
+    WhiteTeamSelecting,
+    BlackTeamSelecting,
+    Completed,
+    Reselecting
+}
 
 public class ChessBoard : MonoBehaviour
 {
     public static ChessBoard Instance { get; private set; }
 
     [Header("Art References")]
-    [SerializeField] private Material blackMaterial = null;    // 黑格材質
-    [SerializeField] private Material whiteMaterial = null;    // 白格材質
+    [SerializeField] private Material blackMaterial = null;
+    [SerializeField] private Material whiteMaterial = null;
     [SerializeField] private Material hoverMaterial;
     [SerializeField] private Material moveEreaMaterial;
     [SerializeField] private Material attackEreaMaterial;
     [SerializeField] private float tileSize = 1f;
     [SerializeField] private float yOffset = 0.2f;
-    [SerializeField] private float deathSize = 50f;
+    [SerializeField] private float deathSize = 0.5f;
     [SerializeField] private float deathSpacing = 0.4f;
     [SerializeField] private float dragOffset = 1f;
-    TMP_Text messageText;
 
     [Header("Prefabs & Materials")]
     [SerializeField] private Material[] teamMaterials;
     [SerializeField] private Material[] KingMaterials;
 
-    //LOGIC
+    // Logic
     private ChessPiece[,] chessPieces;
     private ChessPiece currentlyDragging;
-    private List<Vector2Int> availableMoves = new List<Vector2Int>();
-    private List<Vector2Int> availableAttacks = new List<Vector2Int>();
-    private List<ChessPiece> deadTeam_1 = new List<ChessPiece>();
-    private List<ChessPiece> deadTeam_2 = new List<ChessPiece>();
-    private const int Tile_COUNT_X = 8;
-    private const int Tile_COUNT_Y = 8;
+    private readonly List<Vector2Int> availableMoves = new();
+    private readonly List<Vector2Int> availableAttacks = new();
+    private readonly Dictionary<int, List<ChessPiece>> deadPieces = new();
+    private const int TILE_COUNT = 8;
     private GameObject[,] tiles;
-    private Renderer[,] tileRenderers; //Renderer（渲染器）
+    private Renderer[,] tileRenderers;
     private Camera currentCamera;
-    private Vector2Int currentHoverdTile;
-    private Vector2Int currentSelectedTile;
-    private bool isTeam_1_Turn; //true = team 1 , false = team 2
-    private int selectingKingTeam = 0; // 0 = Team1 選王, 1 = Team2 選王, -1 = 已選完
+    private Vector2Int currentHoverdTile = -Vector2Int.one;
+    private Vector2Int currentSelectedTile = -Vector2Int.one;
+    private bool isWhiteTeam_Turn;
+    private KingSelectionState kingSelectionState = KingSelectionState.WhiteTeamSelecting;
 
-    //Use with CardSystem
-    public int CurrentTurnTeam => isTeam_1_Turn ? 0 : 1;
-    public int SelectingKingTeam => selectingKingTeam;
-    private bool isReselectingKing = false;
+    private enum TileHighlightType { None, Move, Attack }
+    private readonly Dictionary<Vector2Int, TileHighlightType> highlightedTilesDict = new();
 
+    // Properties
+    public int CurrentTurnTeam => isWhiteTeam_Turn ? 0 : 1;
 
+    public int SelectingKingTeam
+    {
+        get
+        {
+            return kingSelectionState switch
+            {
+                KingSelectionState.WhiteTeamSelecting => 0,
+                KingSelectionState.BlackTeamSelecting => 1,
+                KingSelectionState.Reselecting => CurrentTurnTeam,
+                _ => -1
+            };
+        }
+    }
+
+    #region Unity Methods
     private void Awake()
     {
-        // 單例設定
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
@@ -61,181 +78,64 @@ public class ChessBoard : MonoBehaviour
         }
         Instance = this;
 
-        isTeam_1_Turn = true;
+        isWhiteTeam_Turn = true;
 
-        GenerateGrid(1, Tile_COUNT_X, Tile_COUNT_Y);
+        GenerateGrid(tileSize, TILE_COUNT, TILE_COUNT);
         SpawnAllPiece();
         PositionAllPiece();
- 
     }
+
     private void Start()
     {
         UIManager.Instance.ShowMessage("Team 1, please select a piece as your King!");
+        deadPieces[0] = new();
+        deadPieces[1] = new();
     }
+
     private void Update()
     {
-        if (!currentCamera)
-        {
-            currentCamera = Camera.main;
-            return;
-        }
-
-        RaycastHit info;
-        Ray ray = currentCamera.ScreenPointToRay(Input.mousePosition);
-        if (Physics.Raycast(ray, out info, 100, LayerMask.GetMask("Tile")))
-        {
-            //Get the indexes of the tile i've hit 取得所有被點擊的棋格位置(索引值)
-            Vector2Int hitPosition = GetHitTileIndex(info.transform.gameObject);
-
-            //If we are hovering a tile after not hovering any tiles
-            if (currentHoverdTile == -Vector2Int.one)
-            {
-                //First time hovering over a tile
-                currentHoverdTile = hitPosition;
-                tileRenderers[currentHoverdTile.x, currentHoverdTile.y].material = hoverMaterial;
-            }
-
-            //If we were already hovering a tile,change the previous tile
-            if (currentHoverdTile != hitPosition)
-            {
-                //Change the previous tile material back to default
-                if (currentHoverdTile != -Vector2Int.one && currentHoverdTile != currentSelectedTile)
-                {
-                    if (ContainsValidMove(availableMoves, currentHoverdTile))
-                        tileRenderers[currentHoverdTile.x, currentHoverdTile.y].material = moveEreaMaterial;
-                    else if (ContainsValidAttack(availableAttacks, currentHoverdTile))
-                        tileRenderers[currentHoverdTile.x, currentHoverdTile.y].material = attackEreaMaterial;
-                    else
-                        SetTileDefaultMaterial(currentHoverdTile.x, currentHoverdTile.y);
-                }
-                //Set the new tile to be the current hovered tile
-                currentHoverdTile = hitPosition;
-                if (currentHoverdTile != currentSelectedTile)
-                    tileRenderers[currentHoverdTile.x, currentHoverdTile.y].material = hoverMaterial;
-            }
-
-            //If we press down on the mouse
-            if (Input.GetMouseButtonDown(0))
-            {
-                if (chessPieces[hitPosition.x, hitPosition.y] != null)
-                {
-                    ChessPiece clickedPiece = chessPieces[hitPosition.x, hitPosition.y];
-
-                    // === 選王模式 ===
-                    if (selectingKingTeam != -1)
-                    {
-                        SelectKingPiece(clickedPiece);
-                        return; // 選王時不繼續其他流程
-                    }
-
-                    // === 一般遊戲模式 ===
-                    if ((clickedPiece.team == 0 && isTeam_1_Turn) || (clickedPiece.team == 1 && !isTeam_1_Turn))
-                    {
-                        currentlyDragging = clickedPiece;
-
-                        availableMoves = currentlyDragging.GetAvailableMoves(ref chessPieces, Tile_COUNT_X, Tile_COUNT_Y);
-                        availableAttacks = currentlyDragging.GetAvailableAttacks(ref chessPieces, Tile_COUNT_X, Tile_COUNT_Y);
-                        HighlightTiles();
-                    }
-                }
-            }
-
-            //If we release the mouse button
-            if (currentlyDragging != null && Input.GetMouseButtonUp(0))
-            {
-                Vector2Int previousPosition = new Vector2Int(currentlyDragging.currentX, currentlyDragging.currentY);
-                
-                bool vailMove = MoveTo(currentlyDragging, hitPosition.x, hitPosition.y);
-                if (!vailMove) //如果移動失敗
-                    currentlyDragging.SetPosition(GetTileCenter(previousPosition.x, previousPosition.y));
-
-                currentlyDragging = null;
-                RemoveHighlightTile();
-            }
-
-        }
-        else
-        {
-            //If we were hovering a tile but now we're not
-            if (currentHoverdTile != -Vector2Int.one && currentHoverdTile != currentSelectedTile)
-            {
-                // 如果這個格子是可移動格子
-                if (ContainsValidMove(availableMoves, currentHoverdTile))
-                {
-                    // 恢復成移動材質
-                    tileRenderers[currentHoverdTile.x, currentHoverdTile.y].material = moveEreaMaterial;
-                }
-                else if(ContainsValidAttack(availableAttacks, currentHoverdTile))
-                {
-                    // 恢復成攻擊材質
-                    tileRenderers[currentHoverdTile.x, currentHoverdTile.y].material = attackEreaMaterial;
-                }
-                else
-                {
-                    // 恢復成黑白格
-                    SetTileDefaultMaterial(currentHoverdTile.x, currentHoverdTile.y);
-                }
-                currentHoverdTile = -Vector2Int.one;
-            }
-            
-            if(currentlyDragging && Input.GetMouseButtonUp(0))
-            {
-                currentlyDragging.SetPosition(GetTileCenter(currentlyDragging.currentX, currentlyDragging.currentY));
-                currentlyDragging = null;
-                RemoveHighlightTile();
-            }
-
-        }
-
-        //If we're dragging a piece, update its position
-        if (currentlyDragging)
-        {
-            Plane horizontalPlane = new Plane(Vector3.up, Vector3.up * yOffset);
-            float distance = 0.0f;
-            if (horizontalPlane.Raycast(ray, out distance))
-            {
-                currentlyDragging.SetPosition(ray.GetPoint(distance) + Vector3.up * dragOffset);
-            }
-        }
-
-
+        HandleMouseInteraction();
     }
+    #endregion
 
-    // ===== Generate Tile Board =====
+    #region Tile Generation
     private void GenerateGrid(float tileSize, int tileCountX, int tileCountY)
     {
         tiles = new GameObject[tileCountX, tileCountY];
         tileRenderers = new Renderer[tileCountX, tileCountY];
+
         for (int x = 0; x < tileCountX; x++)
         {
-            for(int y = 0; y < tileCountY; y++)
+            for (int y = 0; y < tileCountY; y++)
             {
                 tiles[x, y] = GenerateSingleTile(tileSize, x, y);
-                tileRenderers[x, y] = tiles[x, y].GetComponent<Renderer>(); // 把 Renderer 存起來
+                tileRenderers[x, y] = tiles[x, y].GetComponent<Renderer>();
             }
         }
     }
+
     private GameObject GenerateSingleTile(float tileSize, int x, int y)
     {
-        GameObject tileObject =new GameObject(string.Format("X:{0}, Y:{1}", x, y));
+        GameObject tileObject = new($"X:{x}, Y:{y}");
         tileObject.transform.parent = transform;
 
-        Mesh mesh = new Mesh();
-        tileObject.AddComponent<MeshFilter>().mesh = mesh; tileObject.AddComponent<MeshRenderer>();
+        Mesh mesh = new();
+        tileObject.AddComponent<MeshFilter>().mesh = mesh;
+        tileObject.AddComponent<MeshRenderer>();
 
-        Vector3[] vertices = new Vector3[4];
-        vertices[0] = new Vector3(x * tileSize, 0, y * tileSize);
-        vertices[1] = new Vector3(x * tileSize, 0, (y + 1) * tileSize);
-        vertices[2] = new Vector3((x + 1) * tileSize, 0, y * tileSize);
-        vertices[3] = new Vector3((x + 1) * tileSize, 0, (y + 1) * tileSize);
+        Vector3[] vertices =
+        {
+            new(x * tileSize, 0, y * tileSize),
+            new(x * tileSize, 0, (y + 1) * tileSize),
+            new((x + 1) * tileSize, 0, y * tileSize),
+            new((x + 1) * tileSize, 0, (y + 1) * tileSize)
+        };
 
-        int[] tris = new int[] { 0, 1, 2, 2, 1, 3 };
+        int[] tris = { 0, 1, 2, 2, 1, 3 };
         mesh.vertices = vertices;
         mesh.triangles = tris;
-
         mesh.RecalculateNormals();
 
-        // 設置黑白格材質
         Material tileMat = ((x + y) % 2 == 0) ? blackMaterial : whiteMaterial;
         tileObject.GetComponent<Renderer>().material = tileMat;
 
@@ -244,375 +144,388 @@ public class ChessBoard : MonoBehaviour
 
         return tileObject;
     }
+
     private void SetTileDefaultMaterial(int x, int y)
     {
         tileRenderers[x, y].material = ((x + y) % 2 == 0) ? blackMaterial : whiteMaterial;
     }
+    #endregion
 
-
-    // ===== Spawn Chess Piece =====
+    #region Chess Piece Spawn & Position
     private void SpawnAllPiece()
     {
-        chessPieces = new ChessPiece[Tile_COUNT_X, Tile_COUNT_Y];
+        chessPieces = new ChessPiece[TILE_COUNT, TILE_COUNT];
         int firstTeam = 0;
         int secondTeam = 1;
 
-        List<Vector2Int> usedPositions = new List<Vector2Int>();
+        // Team 1
+        chessPieces[1, 0] = SpawnSinglePiece(ChessPieceType.Bishop, firstTeam);
+        chessPieces[2, 0] = SpawnSinglePiece(ChessPieceType.Knight, firstTeam);
+        chessPieces[3, 0] = SpawnSinglePiece(ChessPieceType.King, firstTeam);
+        chessPieces[4, 0] = SpawnSinglePiece(ChessPieceType.Queen, firstTeam);
+        chessPieces[5, 0] = SpawnSinglePiece(ChessPieceType.Pawn, firstTeam);
+        chessPieces[6, 0] = SpawnSinglePiece(ChessPieceType.Rook, firstTeam);
 
-        // 要生成的棋子類型（你可依需要增減）
-        ChessPieceType[] pieceTypes = {
-        ChessPieceType.King,
-        ChessPieceType.Queen,
-        ChessPieceType.Rook,
-        ChessPieceType.Bishop,
-        ChessPieceType.Knight,
-        ChessPieceType.Pawn
-    };
-
-        foreach (var type in pieceTypes)
-        {
-            Vector2Int pos = GetRandomEmptyPosition(usedPositions, 0, 1); // team1範圍 (y=0~1)
-            usedPositions.Add(pos);
-
-            // 生成 team1 棋子
-            chessPieces[pos.x, pos.y] = SpawnSinglePiece(type, firstTeam);
-
-            // 對稱座標（沿 Y 軸鏡像）
-            Vector2Int mirrorPos = new Vector2Int(pos.x, Tile_COUNT_Y - 1 - pos.y);
-
-            // 生成 team2 棋子
-            chessPieces[mirrorPos.x, mirrorPos.y] = SpawnSinglePiece(type, secondTeam);
-        }
-
-        PositionAllPiece();
+        // Team 2
+        chessPieces[1, 7] = SpawnSinglePiece(ChessPieceType.Bishop, secondTeam);
+        chessPieces[2, 7] = SpawnSinglePiece(ChessPieceType.Knight, secondTeam);
+        chessPieces[3, 7] = SpawnSinglePiece(ChessPieceType.King, secondTeam);
+        chessPieces[4, 7] = SpawnSinglePiece(ChessPieceType.Queen, secondTeam);
+        chessPieces[5, 7] = SpawnSinglePiece(ChessPieceType.Pawn, secondTeam);
+        chessPieces[6, 7] = SpawnSinglePiece(ChessPieceType.Rook, secondTeam);
     }
 
-    // 隨機取得空格位置（限制在特定Y範圍）
-    private Vector2Int GetRandomEmptyPosition(List<Vector2Int> used, int minY, int maxY)
-    {
-        Vector2Int pos;
-        do
-        {
-            pos = new Vector2Int(UnityEngine.Random.Range(0, Tile_COUNT_X), UnityEngine.Random.Range(minY, maxY + 1));
-        } while (used.Contains(pos));
-        return pos;
-    }
     private ChessPiece SpawnSinglePiece(ChessPieceType type, int team)
     {
-        // 從 Pool 取得棋子
         ChessPiece cp = ChessPiecePool.Instance.GetPiece(type, transform);
-
         cp.type = type;
         cp.team = team;
         cp.isKing = false;
-
-        // 設置材質
         cp.GetComponent<MeshRenderer>().material = teamMaterials[team];
-
         return cp;
     }
 
-
-    // ===== Position Piece =====
     private void PositionAllPiece()
     {
-        for (int x = 0; x < Tile_COUNT_X; x++)
-            for (int y = 0; y < Tile_COUNT_Y; y++)
+        for (int x = 0; x < TILE_COUNT; x++)
+        {
+            for (int y = 0; y < TILE_COUNT; y++)
+            {
                 if (chessPieces[x, y] != null)
                     PositionSinglePiece(x, y);
+            }
+        }
     }
+
     private void PositionSinglePiece(int x, int y, bool force = false)
     {
         chessPieces[x, y].currentX = x;
         chessPieces[x, y].currentY = y;
-        chessPieces[x, y].SetPosition(GetTileCenter(x, y),force);
+        chessPieces[x, y].SetPosition(GetTileCenter(x, y), force);
     }
+
     private Vector3 GetTileCenter(int x, int y)
     {
-        return new Vector3(x * tileSize + tileSize / 2, yOffset, y * tileSize + tileSize / 2);
+        return new(x * tileSize + tileSize / 2, yOffset, y * tileSize + tileSize / 2);
     }
 
-    // ===== Highlight Tiles =====
-    private void HighlightTiles()
+    private Vector2Int GetHitTileIndex(GameObject hitInfo)
     {
-        // 遍歷所有可移動位置
-        foreach (Vector2Int pos in availableMoves)
+        for (int x = 0; x < TILE_COUNT; x++)
         {
-            // 檢查位置是否有效
-            if (pos.x >= 0 && pos.x < Tile_COUNT_X && pos.y >= 0 && pos.y < Tile_COUNT_Y)
+            for (int y = 0; y < TILE_COUNT; y++)
             {
-                tileRenderers[pos.x, pos.y].material = moveEreaMaterial;
+                if (tiles[x, y] == hitInfo)
+                    return new(x, y);
             }
         }
-        // 遍歷所有可攻擊位置
-        foreach (Vector2Int pos in availableAttacks)
+        return -Vector2Int.one;
+    }
+    #endregion
+
+    #region Highlight Tiles
+    private void HighlightTiles(ChessPiece cp)
+    {
+        highlightedTilesDict.Clear();
+
+        if (cp == null) return;
+
+        var moves = cp.GetAvailableMoves(ref chessPieces, TILE_COUNT, TILE_COUNT);
+        var attacks = cp.GetAvailableAttacks(ref chessPieces, TILE_COUNT, TILE_COUNT);
+
+        foreach (var pos in moves)
+            highlightedTilesDict[pos] = TileHighlightType.Move;
+
+        foreach (var pos in attacks)
+            highlightedTilesDict[pos] = TileHighlightType.Attack; // Attack 優先覆蓋 Move
+
+        foreach (var kvp in highlightedTilesDict)
         {
-            // 檢查位置是否有效
-            if (pos.x >= 0 && pos.x < Tile_COUNT_X && pos.y >= 0 && pos.y < Tile_COUNT_Y)
-            {
-                tileRenderers[pos.x, pos.y].material = attackEreaMaterial;
-            }
+            tileRenderers[kvp.Key.x, kvp.Key.y].material =
+                kvp.Value == TileHighlightType.Move ? moveEreaMaterial : attackEreaMaterial;
         }
     }
+
     private void RemoveHighlightTile()
     {
-        // 遍歷所有可移動位置
-        foreach (Vector2Int pos in availableMoves)
+        foreach (var kvp in highlightedTilesDict)
         {
-            // 檢查位置是否有效
-            if (pos.x >= 0 && pos.x < Tile_COUNT_X && pos.y >= 0 && pos.y < Tile_COUNT_Y)
-            {
-                SetTileDefaultMaterial(pos.x, pos.y);
-            }
-        }
-        // 遍歷所有可攻擊位置
-        foreach (Vector2Int pos in availableAttacks)
-        {
-            // 檢查位置是否有效
-            if (pos.x >= 0 && pos.x < Tile_COUNT_X && pos.y >= 0 && pos.y < Tile_COUNT_Y)
-            {
-                SetTileDefaultMaterial(pos.x, pos.y);
-            }
+            SetTileDefaultMaterial(kvp.Key.x, kvp.Key.y);
         }
 
-        // 清空可移動格子
-        availableMoves.Clear();
-        // 清空可攻擊格子
-        availableAttacks.Clear();
+        highlightedTilesDict.Clear();
+        currentlyDragging = null;
     }
 
-    // ===== Check Mate =====
-    public void SelectKingPiece(ChessPiece cp)
+    private void ResetTileMaterial(Vector2Int pos)
     {
-        // 檢查是否正在選王
-        if (selectingKingTeam == -1) return;
-
-        // 只能選自己隊伍的棋子
-        if (cp.team != selectingKingTeam)
+        if (highlightedTilesDict.TryGetValue(pos, out TileHighlightType type))
         {
-            UIManager.Instance.ShowMessage(
-                "You cannot select the opponent's piece as King!",
-                2f
-            );
+            tileRenderers[pos.x, pos.y].material =
+                type == TileHighlightType.Move ? moveEreaMaterial : attackEreaMaterial;
+        }
+        else
+        {
+            SetTileDefaultMaterial(pos.x, pos.y);
+        }
+    }
+    #endregion
+
+    #region Mouse Interaction
+    private void HandleMouseInteraction()
+    {
+        if (!currentCamera) { currentCamera = Camera.main; return; }
+
+        Ray ray = currentCamera.ScreenPointToRay(UnityEngine.InputSystem.Mouse.current.position.ReadValue());
+        if (Physics.Raycast(ray, out RaycastHit info, 100, LayerMask.GetMask("Tile")))
+        {
+            Vector2Int hitPos = GetHitTileIndex(info.transform.gameObject);
+            HandleHover(hitPos);
+            HandleClick(hitPos);
+            HandleDrag(ray);
+            HandleRelease(hitPos);
+        }
+        else
+        {
+            ResetHover();
+            HandleReleaseOnEmpty();
+        }
+    }
+
+    private void HandleHover(Vector2Int hitPos)
+    {
+        if (currentHoverdTile != -Vector2Int.one && currentHoverdTile != hitPos)
+            ResetTileMaterial(currentHoverdTile);
+
+        currentHoverdTile = hitPos;
+
+        if (currentHoverdTile != currentSelectedTile)
+            tileRenderers[currentHoverdTile.x, currentHoverdTile.y].material = hoverMaterial;
+    }
+
+    private void HandleClick(Vector2Int hitPos)
+    {
+        if (!UnityEngine.Input.GetMouseButtonDown(0)) return;
+
+        ChessPiece clickedPiece = chessPieces[hitPos.x, hitPos.y];
+
+        if (kingSelectionState == KingSelectionState.WhiteTeamSelecting ||
+            kingSelectionState == KingSelectionState.BlackTeamSelecting ||
+            kingSelectionState == KingSelectionState.Reselecting)
+        {
+            if (clickedPiece != null) SelectKingPiece(clickedPiece);
             return;
         }
 
-        // 設為王
+        if (clickedPiece != null && clickedPiece.team == CurrentTurnTeam)
+        {
+            currentlyDragging = clickedPiece;
+            HighlightTiles(currentlyDragging); // 只依棋子生成格子
+        }
+    }
+
+    private void HandleDrag(Ray ray)
+    {
+        if (!currentlyDragging) return;
+
+        Plane plane = new(Vector3.up, Vector3.up * yOffset);
+        if (plane.Raycast(ray, out float distance))
+            currentlyDragging.SetPosition(ray.GetPoint(distance) + Vector3.up * dragOffset);
+    }
+
+    private void HandleRelease(Vector2Int hitPos)
+    {
+        if (!currentlyDragging || !UnityEngine.Input.GetMouseButtonUp(0)) return;
+
+        Vector2Int prevPos = new(currentlyDragging.currentX, currentlyDragging.currentY);
+        bool validMove = MoveTo(currentlyDragging, hitPos.x, hitPos.y);
+
+        if (!validMove)
+            currentlyDragging.SetPosition(GetTileCenter(prevPos.x, prevPos.y));
+
+        currentlyDragging = null;
+        RemoveHighlightTile();
+    }
+
+    private void ResetHover()
+    {
+        if (currentHoverdTile != -Vector2Int.one && currentHoverdTile != currentSelectedTile)
+            ResetTileMaterial(currentHoverdTile);
+
+        currentHoverdTile = -Vector2Int.one;
+    }
+
+    private void HandleReleaseOnEmpty()
+    {
+        if (!currentlyDragging || !UnityEngine.Input.GetMouseButtonUp(0)) return;
+
+        currentlyDragging.SetPosition(GetTileCenter(currentlyDragging.currentX, currentlyDragging.currentY));
+        currentlyDragging = null;
+        RemoveHighlightTile();
+    }
+
+    #endregion
+
+    #region Move / Attack
+    private bool MoveTo(ChessPiece cp, int x, int y)
+    {
+        if (cp == null) return false;
+
+        Vector2Int targetPos = new(x, y);
+        ChessPiece targetPiece = chessPieces[x, y];
+
+        bool isMove = cp.GetAvailableMoves(ref chessPieces, TILE_COUNT, TILE_COUNT).Contains(targetPos);
+        bool isAttack = cp.GetAvailableAttacks(ref chessPieces, TILE_COUNT, TILE_COUNT).Contains(targetPos);
+
+        if (!isMove && !isAttack) return false;
+
+        if (isAttack && targetPiece != null && targetPiece.team != cp.team)
+        {
+            HandleAttack(cp, targetPiece);
+        }
+        else if (isMove && targetPiece != null)
+        {
+            return false;
+        }
+
+        Vector2Int previousPos = new(cp.currentX, cp.currentY);
+        chessPieces[x, y] = cp;
+        chessPieces[previousPos.x, previousPos.y] = null;
+        PositionSinglePiece(x, y, true);
+
+        isWhiteTeam_Turn = !isWhiteTeam_Turn;
+        UIManager.Instance.ShowCurrentTurn(CurrentTurnTeam);
+
+        return true;
+    }
+    private void HandleAttack(ChessPiece attacker, ChessPiece target)
+    {
+        int defeatedTeam = target.team;
+
+        if (target.isKing)
+            CheckMate(attacker.team);
+
+        deadPieces[defeatedTeam].Add(target);
+        target.SetScale(Vector3.one * deathSize, true);
+
+        Vector3 deathBase = defeatedTeam == 0
+            ? new Vector3(8 * tileSize, yOffset, -1 * tileSize) + Vector3.one * tileSize / 2
+            : new Vector3(-1 * tileSize, yOffset, 8 * tileSize) + Vector3.one * tileSize / 2;
+
+        float zOffset = (defeatedTeam == 0 ? 1f : -1f) * deathSpacing * deadPieces[defeatedTeam].Count * 0.5f;
+        Vector3 deathOffset = new(0f, 0f, zOffset);
+        target.SetPosition(deathBase + deathOffset);
+
+        chessPieces[target.currentX, target.currentY] = null;
+    }
+    public bool ContainsValidMove(List<Vector2Int> moves, Vector2Int pos) => moves.Contains(pos);
+    public bool ContainsValidAttack(List<Vector2Int> attacks, Vector2Int pos) => attacks.Contains(pos);
+    public void SwitchTurn()
+    {
+        isWhiteTeam_Turn = !isWhiteTeam_Turn;
+        UIManager.Instance.ShowCurrentTurn(CurrentTurnTeam);
+    }
+    #endregion
+
+    #region King Selection
+    public void SelectKingPiece(ChessPiece cp)
+    {
+        if (kingSelectionState == KingSelectionState.None || kingSelectionState == KingSelectionState.Completed) return;
+        if (!IsValidKingSelection(cp))
+        {
+            UIManager.Instance.ShowMessage("You cannot select the opponent's piece as King!", 2f);
+            return;
+        }
+
         cp.SetKing(true);
         if (KingMaterials != null && cp.team < KingMaterials.Length)
             cp.GetComponent<MeshRenderer>().material = KingMaterials[cp.team];
 
-        if (isReselectingKing)
+        if (kingSelectionState == KingSelectionState.Reselecting) FinishReselectKing();
+        else AdvanceKingSelectionState();
+    }
+    private bool IsValidKingSelection(ChessPiece cp)
+    {
+        return (kingSelectionState == KingSelectionState.WhiteTeamSelecting && cp.team == 0) ||
+               (kingSelectionState == KingSelectionState.BlackTeamSelecting && cp.team == 1) ||
+               (kingSelectionState == KingSelectionState.Reselecting && cp.team == CurrentTurnTeam);
+    }
+    private void FinishReselectKing()
+    {
+        UIManager.Instance.ShowMessage($"Team {CurrentTurnTeam + 1} has reselected their King!", 2f);
+        kingSelectionState = KingSelectionState.Completed;
+        SwitchTurn();
+    }
+    private void AdvanceKingSelectionState()
+    {
+        if (kingSelectionState == KingSelectionState.WhiteTeamSelecting)
         {
-            // 使用重選王卡牌流程：選完立即結束
-            selectingKingTeam = -1;
-            isReselectingKing = false;
-            UIManager.Instance.ShowMessage(
-                $"Team {cp.team + 1} has reselected their King!",
-                2f
-            );
-            isReselectingKing = false;
-            SwitchTurn(); // 選完後直接換回合
-            return;
-        }
-
-        // 正常開局選王流程
-        if (selectingKingTeam == 0)
-        {
-            selectingKingTeam = 1;
-            UIManager.Instance.ShowMessage(
-                "Team 2, please select a piece as your King!",
-                2f
-            );
+            kingSelectionState = KingSelectionState.BlackTeamSelecting;
+            UIManager.Instance.ShowMessage("Team 2, please select a piece as your King!", 2f);
         }
         else
         {
-            selectingKingTeam = -1; // 兩隊都選完
-            UIManager.Instance.ShowMessage(
-                "Both teams have chosen their Kings. The game starts!",
-                2f
-            );
+            kingSelectionState = KingSelectionState.Completed;
+            UIManager.Instance.ShowMessage("Both teams have chosen their Kings. The game starts!");
             UIManager.Instance.ShowCurrentTurn(0);
         }
     }
-    private void CheckMate(int team)
+    // ===== Cards ===== 
+    public void ResetKingSelectionForCurrentTeam()
     {
-        UIManager.Instance.ShowVictory(team);
+        int currentTeam = CurrentTurnTeam;
+        kingSelectionState = KingSelectionState.Reselecting;
+
+        foreach (var piece in chessPieces)
+        {
+            if (piece != null && piece.team == currentTeam)
+            {
+                piece.SetKing(false);
+                piece.GetComponent<MeshRenderer>().material = teamMaterials[currentTeam];
+            }
+        }
+
+        UIManager.Instance.ShowMessage($"Team {currentTeam + 1}, please select a new King!", 2f);
     }
+    #endregion
+
+    #region CheckMate / Reset
+    private void CheckMate(int team) => UIManager.Instance.ShowVictory(team);
     public void ResetBoard()
     {
         UIManager.Instance.HideVictory();
-
         currentlyDragging = null;
         availableMoves.Clear();
         availableAttacks.Clear();
 
-        // 回收棋盤上的所有棋子
-        for (int x = 0; x < Tile_COUNT_X; x++)
-        {
-            for (int y = 0; y < Tile_COUNT_Y; y++)
-            {
-                if (chessPieces[x, y] != null)
-                {
-                    ChessPiecePool.Instance.ReturnPiece(chessPieces[x, y]);
-                    chessPieces[x, y] = null;
-                }
-            }
-        }
-
-        // 回收死亡區棋子
-        foreach (var piece in deadTeam_1)
-            ChessPiecePool.Instance.ReturnPiece(piece);
-        foreach (var piece in deadTeam_2)
-            ChessPiecePool.Instance.ReturnPiece(piece);
-
-        deadTeam_1.Clear();
-        deadTeam_2.Clear();
-
-        // 重新生成棋子（從 Pool 取得）
-        SpawnAllPiece();
-        PositionAllPiece();
-
-        // 重置回合
-        isTeam_1_Turn = true;
-
-        // === 重置選王狀態 ===
-        selectingKingTeam = 0;
         foreach (var piece in chessPieces)
         {
-            if (piece != null)
-                piece.isKing = false;
+            if (piece != null) ChessPiecePool.Instance.ReturnPiece(piece);
         }
+
+        foreach (var kvp in deadPieces)
+        {
+            foreach (var piece in kvp.Value)
+            {
+                if (piece != null) ChessPiecePool.Instance.ReturnPiece(piece);
+            }
+            kvp.Value.Clear();
+        }
+
+        SpawnAllPiece();
+        PositionAllPiece();
+        isWhiteTeam_Turn = true;
+
+        foreach (var piece in chessPieces)
+        {
+            if (piece != null) piece.isKing = false;
+        }
+
+        kingSelectionState = KingSelectionState.WhiteTeamSelecting;
 
         UIManager.Instance.HideRoundText();
         UIManager.Instance.ShowMessage("Team 1, please select a piece as your King!");
-
-        // 重新發牌（如有卡牌系統）
         StartCoroutine(CardSystem.Instance.DealStartingCards());
     }
-
-    // ===== Operations =====
-    private Vector2Int GetHitTileIndex(GameObject hitInfo)
-    {
-        for (int x = 0; x < Tile_COUNT_X; x++) 
-        {
-            for (int y = 0; y < Tile_COUNT_Y; y++)
-            {
-                if (tiles[x,y]== hitInfo)
-                    return new Vector2Int(x, y);
-            }
-        }
-        return -Vector2Int.one; //it is actually invalid
-    }
-    public bool ContainsValidMove(List<Vector2Int> moves, Vector2Int pos)
-    {
-        //Contains 會使用 Vector2Int 的 Equals 方法 比較元素是否相同。
-        return moves.Contains(pos);
-    }
-    public bool ContainsValidAttack(List<Vector2Int> attacks, Vector2Int pos)
-    {
-        //Contains 會使用 Vector2Int 的 Equals 方法 比較元素是否相同。
-        return attacks.Contains(pos);
-    }
-    private bool MoveTo(ChessPiece cp, int x, int y)
-    {
-        Vector2Int targetPos = new Vector2Int(x, y);
-        ChessPiece targetPiece = chessPieces[x, y];
-
-        // === 攻擊判斷要先做！ ===
-        if (ContainsValidAttack(availableAttacks, targetPos))
-        {
-            // 攻擊格子上必須有敵方棋子
-            if (targetPiece == null || targetPiece.team == cp.team)
-                return false;
-
-            // 吃掉敵方棋子（同你原本邏輯）
-            if (targetPiece.team == 0)
-            {
-                if (targetPiece.isKing)
-                    CheckMate(1);
-
-                deadTeam_1.Add(targetPiece);
-                targetPiece.SetScale(Vector3.one * deathSize);
-                targetPiece.SetPosition(
-                    new Vector3(8 * tileSize, yOffset, -1 * tileSize)
-                    + new Vector3(tileSize / 2, 0, tileSize / 2)
-                    + (Vector3.forward * deathSpacing * deadTeam_1.Count * 0.5f)
-                );
-            }
-            else
-            {
-                if (targetPiece.isKing)
-                    CheckMate(0);
-
-                deadTeam_2.Add(targetPiece);
-                targetPiece.SetScale(Vector3.one * deathSize, true);
-                targetPiece.SetPosition(
-                    new Vector3(-1 * tileSize, yOffset, 8 * tileSize)
-                    + new Vector3(tileSize / 2, 0, tileSize / 2)
-                    + (Vector3.back * deathSpacing * deadTeam_2.Count * 0.5f)
-                );
-            }
-
-            // 攻擊後移動棋子
-            Vector2Int previousPosition = new Vector2Int(cp.currentX, cp.currentY);
-            chessPieces[x, y] = cp;
-            chessPieces[previousPosition.x, previousPosition.y] = null;
-            PositionSinglePiece(x, y, true);
-
-            isTeam_1_Turn = !isTeam_1_Turn;
-            UIManager.Instance.ShowCurrentTurn(isTeam_1_Turn ? 0 : 1);
-            return true;
-        }
-
-        // === 移動判斷（攻擊以外） ===
-        if (ContainsValidMove(availableMoves, targetPos))
-        {
-            if (targetPiece == null)
-            {
-                Vector2Int previousPosition = new Vector2Int(cp.currentX, cp.currentY);
-                chessPieces[x, y] = cp;
-                chessPieces[previousPosition.x, previousPosition.y] = null;
-                PositionSinglePiece(x, y, true);
-
-                isTeam_1_Turn = !isTeam_1_Turn;
-                UIManager.Instance.ShowCurrentTurn(isTeam_1_Turn ? 0 : 1);
-                return true;
-            }
-            return false;
-        }
-
-        return false;
-    }
-    public void SwitchTurn()
-    {
-        isTeam_1_Turn = !isTeam_1_Turn;
-        UIManager.Instance.ShowCurrentTurn(CurrentTurnTeam);
-    }
-
-    // ===== Cards =====
-    public void ResetKingSelectionForCurrentTeam()
-    {
-        // 設定選王隊伍為當前回合隊伍
-        selectingKingTeam = CurrentTurnTeam;
-        isReselectingKing = true;
-
-        // 清除原本的王
-        for (int x = 0; x < Tile_COUNT_X; x++)
-        {
-            for (int y = 0; y < Tile_COUNT_Y; y++)
-            {
-                if (chessPieces[x, y] != null && chessPieces[x, y].team == selectingKingTeam)
-                {
-                    chessPieces[x, y].SetKing(false);
-                    // 重置材質回原本隊伍材質
-                    chessPieces[x, y].GetComponent<MeshRenderer>().material = teamMaterials[selectingKingTeam];
-                }
-            }
-        }
-
-        // 提示玩家重新選王
-        UIManager.Instance.ShowMessage($"Team {selectingKingTeam + 1}, please select a new King!", 2f);
-    }
-
+    #endregion
 }

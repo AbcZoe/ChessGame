@@ -1,4 +1,3 @@
-using NUnit.Framework;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -43,7 +42,6 @@ public class ChessPiece : MonoBehaviour
         team = 0;
         type = ChessPieceType.None;
         desiredScale = Vector3.one * baseScale;
-        // 如果有材質、顏色等可以在這裡重置
     }
 
     public void SetKing(bool value)
@@ -51,33 +49,27 @@ public class ChessPiece : MonoBehaviour
         isKing = value;
     }
 
-    // ==== 取得可移動、攻擊位置 (子類別覆寫) ====
     public virtual List<Vector2Int> GetAvailableMoves(ref ChessPiece[,] board, int tileCountX, int tileCountY)
     {
         return new List<Vector2Int>();
     }
+
     public virtual List<Vector2Int> GetAvailableAttacks(ref ChessPiece[,] board, int tileCountX, int tileCountY)
     {
         return new List<Vector2Int>();
     }
 
-
-    //virtual 表示這個方法「可以被子類別（繼承這個類別的類別）覆寫（override）」。
     public virtual void SetPosition(Vector3 position, bool force = false)
     {
         desiredPosition = position;
         if (force)
-        {
             transform.position = desiredPosition;
-        }
-    }
-    public virtual void SetScale(Vector3 scale, bool force = false)
-    {
-        desiredScale = scale;
-        if (force)
-        {
-            transform.localScale = desiredScale;
-        }
     }
 
+    public virtual void SetScale(Vector3 scale, bool force = false)
+    {
+        desiredScale = scale * baseScale;
+        if (force)
+            transform.localScale = desiredScale;
+    }
 }

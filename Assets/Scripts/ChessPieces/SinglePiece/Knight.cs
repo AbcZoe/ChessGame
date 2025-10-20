@@ -3,22 +3,24 @@ using UnityEngine;
 
 public class Knight : ChessPiece
 {
+    private static readonly Vector2Int[] moveOffsets =
+    {
+        new(1, 2), new(2, 1), new(-1, 2), new(-2, 1),
+        new(1, -2), new(2, -1), new(-1, -2), new(-2, -1)
+    };
+
     public override List<Vector2Int> GetAvailableMoves(ref ChessPiece[,] board, int tileCountX, int tileCountY)
     {
-        List<Vector2Int> moves = new List<Vector2Int>();
+        List<Vector2Int> moves = new();
 
-        int[,] moveOffsets = {
-            {2, 1}, {1, 2}, {-1, 2}, {-2, 1},
-            {-2, -1}, {-1, -2}, {1, -2}, {2, -1}
-        };
-
-        for (int i = 0; i < moveOffsets.GetLength(0); i++)
+        foreach (var offset in moveOffsets)
         {
-            Vector2Int pos = new Vector2Int(currentX + moveOffsets[i, 0], currentY + moveOffsets[i, 1]);
-            if (!IsInsideBoard(pos, tileCountX, tileCountY)) continue;
+            Vector2Int pos = new(currentX + offset.x, currentY + offset.y);
+            if (!IsInsideBoard(pos, tileCountX, tileCountY))
+                continue;
 
             ChessPiece target = board[pos.x, pos.y];
-            if (target == null || target.team != team)
+            if (target == null)
                 moves.Add(pos);
         }
 
@@ -27,17 +29,13 @@ public class Knight : ChessPiece
 
     public override List<Vector2Int> GetAvailableAttacks(ref ChessPiece[,] board, int tileCountX, int tileCountY)
     {
-        List<Vector2Int> attacks = new List<Vector2Int>();
+        List<Vector2Int> attacks = new();
 
-        int[,] moveOffsets = {
-            {2, 1}, {1, 2}, {-1, 2}, {-2, 1},
-            {-2, -1}, {-1, -2}, {1, -2}, {2, -1}
-        };
-
-        for (int i = 0; i < moveOffsets.GetLength(0); i++)
+        foreach (var offset in moveOffsets)
         {
-            Vector2Int pos = new Vector2Int(currentX + moveOffsets[i, 0], currentY + moveOffsets[i, 1]);
-            if (!IsInsideBoard(pos, tileCountX, tileCountY)) continue;
+            Vector2Int pos = new(currentX + offset.x, currentY + offset.y);
+            if (!IsInsideBoard(pos, tileCountX, tileCountY))
+                continue;
 
             ChessPiece target = board[pos.x, pos.y];
             if (target != null && target.team != team)

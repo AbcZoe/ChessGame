@@ -18,6 +18,10 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameObject victoryPanel;
     [SerializeField] private TMP_Text victoryText;
 
+    [Header("Connect Message UI")]
+    [SerializeField] private GameObject ConnectPanel;
+    [SerializeField] private TMP_Text ConnectText;
+
     private void Awake()
     {
         if (Instance == null) Instance = this;
@@ -41,6 +45,23 @@ public class UIManager : MonoBehaviour
         yield return new WaitForSeconds(seconds);
         if (messageText != null)
             messageText.text = ""; // 只清空文字，不關閉 Panel
+    }
+    // 連線訊息
+    public void ShowConnectMessage(string text, float autoHideTime = 0f)
+    {
+        if (ConnectPanel == null || ConnectText == null) return;
+
+        ConnectPanel.SetActive(true);
+        ConnectText.text = text;
+
+        if (autoHideTime > 0f)
+            StartCoroutine(HideConnectMessageText(autoHideTime));
+    }
+    private IEnumerator HideConnectMessageText(float seconds)
+    {
+        yield return new WaitForSeconds(seconds);
+        if (ConnectText != null)
+            ConnectText.text = ""; // 只清空文字，不關閉 Panel
     }
 
     // 持續顯示回合
@@ -85,7 +106,9 @@ public class UIManager : MonoBehaviour
     public void OnResetButton()
     {
         ChessBoard board = FindAnyObjectByType<ChessBoard>();
-        if (board != null)
+        BasicSpawner spawner = FindAnyObjectByType<BasicSpawner>();
+
+        if (board != null && spawner != null)
         {
             board.ResetBoard();
         }

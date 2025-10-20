@@ -3,86 +3,49 @@ using UnityEngine;
 
 public class Queen : ChessPiece
 {
+    private static readonly Vector2Int[] directions =
+    {
+        new(1, 0), new(-1, 0), new(0, 1), new(0, -1),
+        new(1, 1), new(1, -1), new(-1, 1), new(-1, -1)
+    };
+
     public override List<Vector2Int> GetAvailableMoves(ref ChessPiece[,] board, int tileCountX, int tileCountY)
     {
-        List<Vector2Int> moves = new List<Vector2Int>();
-
-        // 后的移動方向：上下左右 + 四個斜角
-        Vector2Int[] directions = {
-            Vector2Int.up,             // (0, 1)
-            Vector2Int.down,           // (0, -1)
-            Vector2Int.left,           // (-1, 0)
-            Vector2Int.right,          // (1, 0)
-            new Vector2Int(1, 1),      // 右上
-            new Vector2Int(1, -1),     // 右下
-            new Vector2Int(-1, 1),     // 左上
-            new Vector2Int(-1, -1)     // 左下
-        };
-
-        foreach (Vector2Int dir in directions)
-        {
-            for (int i = 1; i < Mathf.Max(tileCountX, tileCountY); i++)
-            {
-                Vector2Int pos = new Vector2Int(currentX + dir.x * i, currentY + dir.y * i);
-                if (!IsInsideBoard(pos, tileCountX, tileCountY))
-                    break;
-
-                ChessPiece target = board[pos.x, pos.y];
-                if (target == null)
-                {
-                    // 空格可走
-                    moves.Add(pos);
-                }
-                else
-                {
-                    // 敵方可攻擊、己方擋路
-                    if (target.team != team)
-                        moves.Add(pos);
-                    break;
-                }
-            }
-        }
-
-        return moves;
+        return GetMovesOrAttacks(ref board, tileCountX, tileCountY, onlyMoves: true);
     }
 
     public override List<Vector2Int> GetAvailableAttacks(ref ChessPiece[,] board, int tileCountX, int tileCountY)
     {
-        List<Vector2Int> attacks = new List<Vector2Int>();
+        return GetMovesOrAttacks(ref board, tileCountX, tileCountY, onlyMoves: false);
+    }
 
-        Vector2Int[] directions = {
-            Vector2Int.up,
-            Vector2Int.down,
-            Vector2Int.left,
-            Vector2Int.right,
-            new Vector2Int(1, 1),
-            new Vector2Int(1, -1),
-            new Vector2Int(-1, 1),
-            new Vector2Int(-1, -1)
-        };
-
-        foreach (Vector2Int dir in directions)
+    private List<Vector2Int> GetMovesOrAttacks(ref ChessPiece[,] board, int tileCountX, int tileCountY, bool onlyMoves)
+    {
+        List<Vector2Int> result = new();
+        foreach (var dir in directions)
         {
             for (int i = 1; i < Mathf.Max(tileCountX, tileCountY); i++)
             {
-                Vector2Int pos = new Vector2Int(currentX + dir.x * i, currentY + dir.y * i);
+                Vector2Int pos = new(currentX + dir.x * i, currentY + dir.y * i);
                 if (!IsInsideBoard(pos, tileCountX, tileCountY))
                     break;
 
                 ChessPiece target = board[pos.x, pos.y];
-                if (target != null)
+
+                if (target == null && onlyMoves)
+                    result.Add(pos);
+                else if (target != null && target.team != team && !onlyMoves)
                 {
-                    if (target.team != team)
-                        attacks.Add(pos);
-                    break; // 遇到棋子後停止搜尋
+                    result.Add(pos);
+                    break;
                 }
+                else if (target != null)
+                    break;
             }
         }
-
-        return attacks;
+        return result;
     }
 
-    // 工具方法：檢查是否在棋盤內
     private bool IsInsideBoard(Vector2Int pos, int tileCountX, int tileCountY)
     {
         return pos.x >= 0 && pos.x < tileCountX && pos.y >= 0 && pos.y < tileCountY;
