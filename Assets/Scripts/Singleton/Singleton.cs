@@ -1,0 +1,49 @@
+using UnityEngine;
+
+public abstract class Singleton<T> : MonoBehaviour where T : MonoBehaviour
+{
+    public static T Instance { get; private set; }
+
+#if UNITY_EDITOR
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void DomainReloadClear()
+    {
+        Instance = null;
+    }
+#endif
+
+    protected virtual void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this as T;
+    }
+
+    protected virtual void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
+    }
+
+    protected virtual void OnApplicationQuit()
+    {
+        Instance = null;
+    }
+}
+
+public abstract class PersistentSingleton<T> : Singleton<T> where T : MonoBehaviour
+{
+    protected override void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        base.Awake();
+        DontDestroyOnLoad(gameObject);
+    }
+}
