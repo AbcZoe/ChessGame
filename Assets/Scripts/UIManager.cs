@@ -1,6 +1,7 @@
 using TMPro;
 using UnityEngine;
 using DG.Tweening;
+using UnityEngine.SceneManagement;
 
 public class UIManager : MonoBehaviour
 {
@@ -54,16 +55,34 @@ public class UIManager : MonoBehaviour
         if (messagePanel == null || messageText == null) return;
 
         messageText.text = text;
+
         messagePanel.SetActive(true);
+
+        // 重置狀態（避免動畫殘留）
+        messagePanel.transform.localScale = Vector3.zero;
+        messageCanvasGroup.alpha = 0f;
+
+        UIEffect.Popup(messagePanel);
         UIEffect.FadeIn(messageCanvasGroup);
 
         if (autoHideTime > 0f)
         {
             DOVirtual.DelayedCall(autoHideTime, () =>
             {
-                UIEffect.FadeOut(messageCanvasGroup);
+                HideMessage();
             });
         }
+    }
+
+    public void HideMessage()
+    {
+        UIEffect.FadeOut(messageCanvasGroup);
+
+        // 等淡出完成再關閉
+        DOVirtual.DelayedCall(0.3f, () =>
+        {
+            messagePanel.SetActive(false);
+        });
     }
 
     // ===== 回合顯示 =====
@@ -81,13 +100,13 @@ public class UIManager : MonoBehaviour
     }
 
     // ===== 卡片說明 =====
-    public void ShowCardDescription(string text)
+    public void ShowCardDescription(string name, string description)
     {
         if (cardDescription != null)
         {
-            cardDescription.text = text;
-            // 可加入動畫，例如淡入
-            // UIEffect.FadeIn(cardDescription.GetComponent<CanvasGroup>());
+            string x = name +
+                "\ndescription:\n" + description;
+            cardDescription.text = x;
         }
     }
 
@@ -172,10 +191,6 @@ public class UIManager : MonoBehaviour
 
     public void OnExitButton()
     {
-#if UNITY_EDITOR
-        UnityEditor.EditorApplication.isPlaying = false;
-#else
-        Application.Quit();
-#endif
+        SceneManager.LoadScene("StartScene");
     }
 }

@@ -9,6 +9,8 @@ public class CardView : MonoBehaviour
 
     public CardData Data { get; private set; }
     public int OwnerTeam { get; private set; }
+
+    public string CardName => Data != null ? Data.cardName : "";
     public string Description => Data != null ? Data.description : "";
 
     public void ResetCard()

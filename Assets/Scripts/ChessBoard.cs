@@ -177,24 +177,43 @@ public class ChessBoard : MonoBehaviour
     private void SpawnAllPiece()
     {
         chessPieces = new ChessPiece[TILE_COUNT, TILE_COUNT];
+
         int firstTeam = 0;
         int secondTeam = 1;
 
-        // Team 1
-        chessPieces[1, 0] = SpawnSinglePiece(ChessPieceType.Bishop, firstTeam);
-        chessPieces[2, 0] = SpawnSinglePiece(ChessPieceType.Knight, firstTeam);
+        // ===== Team 1 主力 =====
+        chessPieces[1, 0] = SpawnSinglePiece(ChessPieceType.Rook, firstTeam);
+        chessPieces[2, 0] = SpawnSinglePiece(ChessPieceType.Bishop, firstTeam);
         chessPieces[3, 0] = SpawnSinglePiece(ChessPieceType.King, firstTeam);
         chessPieces[4, 0] = SpawnSinglePiece(ChessPieceType.Queen, firstTeam);
-        chessPieces[5, 0] = SpawnSinglePiece(ChessPieceType.Pawn, firstTeam);
+        chessPieces[5, 0] = SpawnSinglePiece(ChessPieceType.Bishop, firstTeam);
         chessPieces[6, 0] = SpawnSinglePiece(ChessPieceType.Rook, firstTeam);
 
-        // Team 2
-        chessPieces[1, 7] = SpawnSinglePiece(ChessPieceType.Bishop, secondTeam);
-        chessPieces[2, 7] = SpawnSinglePiece(ChessPieceType.Knight, secondTeam);
+        // ===== Team 1 Pawn 與 Knight 排 =====
+        for (int x = 1; x < TILE_COUNT-1; x++)
+        {
+            if (x == 2 || x == 5)
+                chessPieces[x, 1] = SpawnSinglePiece(ChessPieceType.Knight, firstTeam);
+            else
+                chessPieces[x, 1] = SpawnSinglePiece(ChessPieceType.Pawn, firstTeam);
+        }
+
+        // ===== Team 2 主力 =====
+        chessPieces[1, 7] = SpawnSinglePiece(ChessPieceType.Rook, secondTeam);
+        chessPieces[2, 7] = SpawnSinglePiece(ChessPieceType.Bishop, secondTeam);
         chessPieces[3, 7] = SpawnSinglePiece(ChessPieceType.King, secondTeam);
         chessPieces[4, 7] = SpawnSinglePiece(ChessPieceType.Queen, secondTeam);
-        chessPieces[5, 7] = SpawnSinglePiece(ChessPieceType.Pawn, secondTeam);
+        chessPieces[5, 7] = SpawnSinglePiece(ChessPieceType.Bishop, secondTeam);
         chessPieces[6, 7] = SpawnSinglePiece(ChessPieceType.Rook, secondTeam);
+
+        // ===== Team 2 Pawn 與 Knight 排 =====
+        for (int x = 1; x < TILE_COUNT - 1; x++)
+        {
+            if (x == 2 || x == 5)
+                chessPieces[x, 6] = SpawnSinglePiece(ChessPieceType.Knight, secondTeam);
+            else
+                chessPieces[x, 6] = SpawnSinglePiece(ChessPieceType.Pawn, secondTeam);
+        }
     }
 
     private ChessPiece SpawnSinglePiece(ChessPieceType type, int team)
@@ -460,7 +479,7 @@ public class ChessBoard : MonoBehaviour
         if (kingSelectionState == KingSelectionState.None || kingSelectionState == KingSelectionState.Completed) return;
         if (!IsValidKingSelection(cp))
         {
-            UIManager.Instance.ShowMessage("You cannot select the opponent's piece as King!", 2f);
+            UIManager.Instance.ShowMessage("You cannot select the opponent's piece as King!");
             return;
         }
 
@@ -488,12 +507,12 @@ public class ChessBoard : MonoBehaviour
         if (kingSelectionState == KingSelectionState.WhiteTeamSelecting)
         {
             kingSelectionState = KingSelectionState.BlackTeamSelecting;
-            UIManager.Instance.ShowMessage("Team 2, please select a piece as your King!", 2f);
+            UIManager.Instance.ShowMessage("Team 2, please select a piece as your King!");
         }
         else
         {
             kingSelectionState = KingSelectionState.Completed;
-            UIManager.Instance.ShowMessage("Both teams have chosen their Kings. The game starts!");
+            UIManager.Instance.ShowMessage("Both teams have chosen their Kings. The game starts!", 2f);
             UIManager.Instance.ShowCurrentTurn(0);
         }
     }
@@ -512,7 +531,7 @@ public class ChessBoard : MonoBehaviour
             }
         }
 
-        UIManager.Instance.ShowMessage($"Team {currentTeam + 1}, please select a new King!", 2f);
+        UIManager.Instance.ShowMessage($"Team {currentTeam + 1}, please select a new King!");
     }
     #endregion
 

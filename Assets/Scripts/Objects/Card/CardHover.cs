@@ -100,7 +100,7 @@ public class CardHover : MonoBehaviour
         {
             if (cardView.OwnerTeam == ChessBoard.Instance.CurrentTurnTeam)
             {
-                UIManager.Instance.ShowCardDescription(cardView.Description);
+                UIManager.Instance.ShowCardDescription(cardView.CardName, cardView.Description);
             }
         }
     }
