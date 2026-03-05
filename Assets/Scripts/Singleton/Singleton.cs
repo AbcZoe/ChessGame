@@ -4,14 +4,6 @@ public abstract class Singleton<T> : MonoBehaviour where T : MonoBehaviour
 {
     public static T Instance { get; private set; }
 
-#if UNITY_EDITOR
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    static void DomainReloadClear()
-    {
-        Instance = null;
-    }
-#endif
-
     protected virtual void Awake()
     {
         if (Instance != null && Instance != this)
