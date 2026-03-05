@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using static ChessPiece;
 
 public enum KingSelectionState
@@ -315,9 +316,17 @@ public class ChessBoard : MonoBehaviour
     #region Mouse Interaction
     private void HandleMouseInteraction()
     {
-        if (!currentCamera) { currentCamera = Camera.main; return; }
+        if (!currentCamera)
+        {
+            currentCamera = Camera.main;
+            if (!currentCamera) return; // 沒有 Camera 就跳過
+        }
 
-        Ray ray = currentCamera.ScreenPointToRay(UnityEngine.InputSystem.Mouse.current.position.ReadValue());
+        if (Mouse.current == null) return; // 防止 Input System 沒啟動
+
+        Vector2 mousePos = Mouse.current.position.ReadValue(); // 新系統取得滑鼠位置
+        Ray ray = currentCamera.ScreenPointToRay(mousePos);
+
         if (Physics.Raycast(ray, out RaycastHit info, 100, LayerMask.GetMask("Tile")))
         {
             Vector2Int hitPos = GetHitTileIndex(info.transform.gameObject);
@@ -347,7 +356,7 @@ public class ChessBoard : MonoBehaviour
     private void HandleClick(Vector2Int hitPos)
     {
         if (IsPaused) return;
-        if (!UnityEngine.Input.GetMouseButtonDown(0)) return;
+        if (!Mouse.current.leftButton.wasPressedThisFrame) return;
 
         ChessPiece clickedPiece = chessPieces[hitPos.x, hitPos.y];
 
@@ -379,7 +388,7 @@ public class ChessBoard : MonoBehaviour
     private void HandleRelease(Vector2Int hitPos)
     {
         if (IsPaused) return;
-        if (!currentlyDragging || !UnityEngine.Input.GetMouseButtonUp(0)) return;
+        if (!currentlyDragging || !Mouse.current.leftButton.wasReleasedThisFrame) return;
 
         Vector2Int prevPos = new(currentlyDragging.currentX, currentlyDragging.currentY);
         bool validMove = MoveTo(currentlyDragging, hitPos.x, hitPos.y);
@@ -402,7 +411,7 @@ public class ChessBoard : MonoBehaviour
     private void HandleReleaseOnEmpty()
     {
         if (IsPaused) return;
-        if (!currentlyDragging || !UnityEngine.Input.GetMouseButtonUp(0)) return;
+        if (!currentlyDragging || !Mouse.current.leftButton.wasReleasedThisFrame) return;
 
         currentlyDragging.SetPosition(GetTileCenter(currentlyDragging.currentX, currentlyDragging.currentY));
         currentlyDragging = null;

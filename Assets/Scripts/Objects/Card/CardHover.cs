@@ -1,6 +1,9 @@
+using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 
-public class CardHover : MonoBehaviour
+public class CardHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
     private Vector3 originalPosition;
     private bool isDragging = false;
@@ -14,6 +17,11 @@ public class CardHover : MonoBehaviour
     private void Awake()
     {
         currentCamera = Camera.main;
+        if (currentCamera && !currentCamera.GetComponent<PhysicsRaycaster>())
+        {
+            currentCamera.gameObject.AddComponent<PhysicsRaycaster>();
+        }
+
         originalPosition = transform.position;
         cardView = GetComponent<CardView>();
     }
@@ -26,10 +34,15 @@ public class CardHover : MonoBehaviour
         if (ChessBoard.Instance.IsPaused || ChessBoard.Instance.SelectingKingTeam != -1)
             return;
 
-        Ray ray = currentCamera.ScreenPointToRay(Input.mousePosition);
+        Ray ray = currentCamera.ScreenPointToRay(Mouse.current.position.ReadValue());
 
+        HandleCardDrag(ray);
+    }
+
+    private void HandleCardDrag(Ray ray)
+    {
         // 按下滑鼠開始拖曳
-        if (Input.GetMouseButtonDown(0))
+        if (Mouse.current.leftButton.wasPressedThisFrame)
         {
             RaycastHit hit;
             if (Physics.Raycast(ray, out hit, 100))
@@ -46,7 +59,7 @@ public class CardHover : MonoBehaviour
         }
 
         // 拖曳中
-        if (isDragging && Input.GetMouseButton(0))
+        if (isDragging && Mouse.current.leftButton.isPressed)
         {
             Plane plane = new Plane(Vector3.up, Vector3.up * yOffset);
             if (plane.Raycast(ray, out float distance))
@@ -57,7 +70,7 @@ public class CardHover : MonoBehaviour
         }
 
         // 放開滑鼠
-        if (isDragging && Input.GetMouseButtonUp(0))
+        if (isDragging && Mouse.current.leftButton.wasReleasedThisFrame)
         {
             isDragging = false;
 
@@ -77,6 +90,20 @@ public class CardHover : MonoBehaviour
         }
     }
 
+    // ==== 卡牌描述顯示 ====
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        Debug.Log("Enter Card");
+        if (cardView.OwnerTeam == ChessBoard.Instance.CurrentTurnTeam)
+            UIManager.Instance.ShowCardDescription(cardView.CardName, cardView.Description);
+    }
+
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        Debug.Log("Exit Card");
+        UIManager.Instance.HideCardDescription();
+    }
+
     private void UseCard()
     {
         cardView.Use();
@@ -92,23 +119,4 @@ public class CardHover : MonoBehaviour
 
     }
 
-    // ===== 顯示卡牌描述 =====
-    private void OnMouseEnter()
-    {
-        // 只顯示自己隊伍的卡牌描述
-        if (UIManager.Instance != null && cardView != null)
-        {
-            if (cardView.OwnerTeam == ChessBoard.Instance.CurrentTurnTeam)
-            {
-                UIManager.Instance.ShowCardDescription(cardView.CardName, cardView.Description);
-            }
-        }
-    }
-    private void OnMouseExit()
-    {
-        if (UIManager.Instance != null)
-        {
-            UIManager.Instance.HideCardDescription();
-        }
-    }
 }
