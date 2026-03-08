@@ -31,7 +31,7 @@ public class CardHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         if (!currentCamera || cardView == null) return;
 
         // 遊戲暫停或選王階段，卡牌不可操作
-        if (ChessBoard.Instance.IsPaused || ChessBoard.Instance.SelectingKingTeam != -1)
+        if (GameManager.Instance.IsPaused || ChessBoard.Instance.kingSelectionState != KingSelectionState.Completed)
             return;
 
         Ray ray = currentCamera.ScreenPointToRay(Mouse.current.position.ReadValue());
@@ -50,7 +50,7 @@ public class CardHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
                 if (hit.transform == transform)
                 {
                     // 判斷是否是自己回合
-                    if (ChessBoard.Instance.CurrentTurnTeam != cardView.OwnerTeam) return;
+                    if (GameManager.Instance.CurrentTurnTeam != cardView.OwnerTeam) return;
 
                     isDragging = true;
                     originalPosition = transform.position;
@@ -94,7 +94,7 @@ public class CardHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     public void OnPointerEnter(PointerEventData eventData)
     {
         Debug.Log("Enter Card");
-        if (cardView.OwnerTeam == ChessBoard.Instance.CurrentTurnTeam)
+        if (cardView.OwnerTeam == GameManager.Instance.CurrentTurnTeam)
             UIManager.Instance.ShowCardDescription(cardView.CardName, cardView.Description);
     }
 
@@ -111,7 +111,7 @@ public class CardHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         // 只有一般功能卡才切換回合
         if (!(cardView.Data is ResetKingCard))
         {
-            ChessBoard.Instance.SwitchTurn();
+            GameManager.Instance.SwitchTurn();
         }
 
         // 卡牌消失
