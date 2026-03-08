@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.Netcode;
 
 public class ChessPiecePool : Singleton<ChessPiecePool>
 {
@@ -52,6 +53,15 @@ public class ChessPiecePool : Singleton<ChessPiecePool>
         }
 
         piece.gameObject.SetActive(true);
+
+        // 如果是 NetworkObject，要先 Spawn
+        NetworkObject netObj = piece.GetComponent<NetworkObject>();
+        if (netObj != null && !netObj.IsSpawned)
+        {
+            netObj.Spawn(); // 先 Spawn
+        }
+
+        // Spawn 後再改 parent
         if (parent != null)
             piece.transform.parent = parent;
 

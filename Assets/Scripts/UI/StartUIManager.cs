@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using Unity.Netcode;
 
 public class StartUIManager : MonoBehaviour
 {
@@ -16,6 +17,9 @@ public class StartUIManager : MonoBehaviour
     [SerializeField] private GameObject ModePanelBackground;
     [SerializeField] private GameObject PvPButton;
     [SerializeField] private GameObject PvCButton;
+
+    [Header("Multiplayer UI")]
+    [SerializeField] private GameObject ConnectingPanel;
 
     private CanvasGroup modeCanvasGroup;
 
@@ -32,6 +36,7 @@ public class StartUIManager : MonoBehaviour
         }
 
         if (ModePanel != null) ModePanel.SetActive(false);
+        if (ConnectingPanel != null) ConnectingPanel.SetActive(false);
     }
 
     private void OnEnable()
@@ -82,13 +87,19 @@ public class StartUIManager : MonoBehaviour
         HideModePanel();
     }
 
-
     public void OnPvPClicked()
     {
-        SceneManager.LoadScene("GameScene");
+        ConnectingPanel.SetActive(true);
+        MultiplayerManager.Instance.StartHost();
     }
 
     public void OnPvCClicked()
+    {
+        ConnectingPanel.SetActive(true);
+        MultiplayerManager.Instance.StartClient();
+    }
+
+    public void OnQuitClicked()
     {
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
@@ -96,5 +107,4 @@ public class StartUIManager : MonoBehaviour
         Application.Quit();
 #endif
     }
-
 }
