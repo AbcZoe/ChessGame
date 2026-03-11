@@ -6,14 +6,14 @@ public class CardPool : Singleton<CardPool>
     [SerializeField] private CardView cardPrefab;
     [SerializeField] private int initialCount = 20;
 
-    private Transform poolRoot; // PoolRoot 改成 private
+    private Transform poolRoot;
     private readonly Queue<CardView> pool = new();
 
     protected override void Awake()
     {
         base.Awake();
 
-        // 建立 CardPoolRoot，並設為 CardPool 的子物件
+        // 建立 PoolRoot
         GameObject rootGO = new GameObject("CardPoolRoot");
         rootGO.transform.SetParent(this.transform);
         rootGO.transform.localPosition = Vector3.zero;
@@ -41,8 +41,9 @@ public class CardPool : Singleton<CardPool>
             card = Instantiate(cardPrefab);
         }
 
-        card.transform.SetParent(parent); // parent 可以是 HandView
-        card.transform.SetPositionAndRotation(position, rotation);
+        card.transform.SetParent(parent, false); // UI 卡牌要用 false 保持本地座標
+        card.transform.localPosition = position;
+        card.transform.localRotation = rotation;
 
         return card;
     }
@@ -51,7 +52,7 @@ public class CardPool : Singleton<CardPool>
     {
         card.ResetCard();
         card.gameObject.SetActive(false);
-        card.transform.SetParent(poolRoot); // 回到 PoolRoot
+        card.transform.SetParent(poolRoot, false);
         pool.Enqueue(card);
     }
 }

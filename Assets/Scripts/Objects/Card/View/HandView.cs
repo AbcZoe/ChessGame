@@ -16,8 +16,9 @@ public class HandView : MonoBehaviour
     public IEnumerator AddCard(CardView cardView)
     {
         // 把卡牌放到手牌下
-        cardView.transform.SetParent(this.transform);
+        cardView.transform.SetParent(this.transform, false);
 
+        cardView.gameObject.SetActive(true);
         cards.Add(cardView);
         yield return UpdateCardPosition(0.15f);
     }

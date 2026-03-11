@@ -13,5 +13,6 @@ MonoBehaviour:
   m_Name: TestCard
   m_EditorClassIdentifier: Assembly-CSharp::TestCard
   cardName: TestCard
+  Id: 1
   description: Nothing happend ...
   image: {fileID: 0}

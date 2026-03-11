@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Unity.Netcode;
 using UnityEngine;
 
 public enum ChessPieceType
@@ -12,7 +13,7 @@ public enum ChessPieceType
     Rook = 6
 }
 
-public class ChessPiece : MonoBehaviour
+public class ChessPiece : NetworkBehaviour
 {
     public int team;
     public int currentX;
@@ -24,6 +25,9 @@ public class ChessPiece : MonoBehaviour
     private Vector3 desiredPosition;
     private Vector3 desiredScale = Vector3.one;
     public float baseScale = 1f; // Inspector 可調比例大小
+
+    public NetworkObject NetObj => GetComponent<NetworkObject>();
+    public ulong NetId => NetObj != null ? NetObj.NetworkObjectId : 0;
 
     private void Start()
     {
@@ -72,4 +76,6 @@ public class ChessPiece : MonoBehaviour
         if (force)
             transform.localScale = desiredScale;
     }
+
+
 }

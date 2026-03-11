@@ -5,6 +5,6 @@ public class BootstrapLoader : MonoBehaviour
 {
     void Start()
     {
-        SceneManager.LoadScene("StartScene", LoadSceneMode.Additive);
+        SceneManager.LoadScene("StartScene", LoadSceneMode.Single);
     }
 }

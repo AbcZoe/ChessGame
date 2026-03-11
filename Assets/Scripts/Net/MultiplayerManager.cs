@@ -6,31 +6,44 @@ public class MultiplayerManager : MonoBehaviour
 {
     public static MultiplayerManager Instance;
 
-    void Awake()
+    private void Awake()
     {
-        Instance = this;
+        if (Instance != null)
+            Destroy(gameObject);
+        else
+            Instance = this;
+
         DontDestroyOnLoad(gameObject);
     }
 
     public void StartHost()
     {
-        NetworkManager.Singleton.StartHost();
+        if (!NetworkManager.Singleton.IsServer)
+        {
+            NetworkManager.Singleton.StartHost();
+        }
 
         NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
     }
 
     public void StartClient()
     {
-        NetworkManager.Singleton.StartClient();
+        if (!NetworkManager.Singleton.IsClient)
+        {
+            NetworkManager.Singleton.StartClient();
+        }
     }
 
-    void OnClientConnected(ulong clientId)
+    private void OnClientConnected(ulong clientId)
     {
+        // 當至少 2 位玩家連線時，載入 GameScene（只由 Host 執行）
+        if (!NetworkManager.Singleton.IsServer) return;
+
         if (NetworkManager.Singleton.ConnectedClients.Count >= 2)
         {
             NetworkManager.Singleton.SceneManager.LoadScene(
                 "GameScene",
-                LoadSceneMode.Single
+                UnityEngine.SceneManagement.LoadSceneMode.Single
             );
         }
     }

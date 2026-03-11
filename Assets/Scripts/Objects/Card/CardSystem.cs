@@ -1,20 +1,22 @@
 using System.Collections;
+using System.Collections.Generic;
+using Unity.Netcode;
 using UnityEngine;
 
-public class CardSystem : MonoBehaviour
+public class CardSystem : NetworkBehaviour
 {
     public static CardSystem Instance;
 
-    [Header("手牌區（雙方玩家）")]
+    [Header("手牌區")]
     [SerializeField] private HandView player1Hand;
     [SerializeField] private HandView player2Hand;
 
-    [Header("卡片資料庫")]
-    [SerializeField] private CardDatabase cardDatabase;  // <-- 新增欄位
+    [Header("卡牌資料庫")]
+    [SerializeField] private CardDatabase cardDatabase;
 
     [Header("開局設定")]
-    [SerializeField] private int startCardCount = 3;   // 每位玩家開局卡片數量
-    [SerializeField] private float dealInterval = 0.3f; // 發牌間隔
+    [SerializeField] private int startCardCount = 3;
+    [SerializeField] private float dealInterval = 0.3f;
 
     private void Awake()
     {
@@ -22,47 +24,46 @@ public class CardSystem : MonoBehaviour
         else Destroy(gameObject);
     }
 
-    private void Start()
+    public override void OnNetworkSpawn()
     {
-        StartCoroutine(DealStartingCards());
+        if (IsServer)
+        {
+            StartCoroutine(DealStartingCardsCoroutine());
+        }
     }
 
-    public IEnumerator DealStartingCards()
+    public IEnumerator DealStartingCardsCoroutine()
     {
-        // 先清空手牌
-        player1Hand.ClearHand();
-        player2Hand.ClearHand();
-
         for (int i = 0; i < startCardCount; i++)
         {
             // 玩家 1
-            CardView card1 = CardViewCreator.Instance.CreateCardView(
-                player1Hand.transform.position,
-                Quaternion.identity,
-                player1Hand.transform
-            );
-
-            // 從資料庫中取一張隨機卡
-            CardData data1 = cardDatabase.GetRandomCard();
-            if (data1 != null)
-                card1.SetCardData(data1, 0);
-
-            yield return player1Hand.StartCoroutine(player1Hand.AddCard(card1));
+            CardData card1 = cardDatabase.GetRandomCard();
+            Debug.Log(" 發牌給玩家 1: " + card1.cardName + " (ID: " + card1.Id + ")");
+            DealCardClientRpc(0, card1.Id);
             yield return new WaitForSeconds(dealInterval);
 
             // 玩家 2
-            CardView card2 = CardViewCreator.Instance.CreateCardView(
-                player2Hand.transform.position,
-                Quaternion.identity,
-                player2Hand.transform
-            );
-
-            CardData data2 = cardDatabase.GetRandomCard();
-            if (data2 != null)
-                card2.SetCardData(data2, 1);
-
-            yield return player2Hand.StartCoroutine(player2Hand.AddCard(card2));
+            CardData card2 = cardDatabase.GetRandomCard();
+            Debug.Log(" 發牌給玩家 2: " + card1.cardName + " (ID: " + card1.Id + ")");
+            DealCardClientRpc(1, card2.Id);
             yield return new WaitForSeconds(dealInterval);
         }
+    }
+
+    [ClientRpc]
+    private void DealCardClientRpc(int playerTeam, int cardId)
+    {
+        CardData data = cardDatabase.GetCardById(cardId);
+        if (data == null) return;
+
+        HandView hand = playerTeam == 0 ? player1Hand : player2Hand;
+
+        CardView card = CardPool.Instance.GetCard(Vector3.zero, Quaternion.identity, hand.transform);
+
+        // 刷新卡牌資料
+        card.SetCardData(data, playerTeam);
+
+        // 加到手牌
+        StartCoroutine(hand.AddCard(card));
     }
 }

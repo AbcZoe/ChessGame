@@ -15,8 +15,9 @@ public class StartUIManager : MonoBehaviour
     [Header("Choose Mode UI")]
     [SerializeField] private GameObject ModePanel;
     [SerializeField] private GameObject ModePanelBackground;
-    [SerializeField] private GameObject PvPButton;
-    [SerializeField] private GameObject PvCButton;
+    [SerializeField] private GameObject HostButton;
+    [SerializeField] private GameObject JoinButton;
+    [SerializeField] private GameObject ExitButton;
 
     [Header("Multiplayer UI")]
     [SerializeField] private GameObject ConnectingPanel;
@@ -58,10 +59,12 @@ public class StartUIManager : MonoBehaviour
         UIEffect.Popup(ModePanel);
         UIEffect.FadeIn(modeCanvasGroup);
 
-        if (PvPButton != null)
-            UIEffect.ButtonPopup(PvPButton, 0.6f);
-        if (PvCButton != null)
-            UIEffect.ButtonPopup(PvCButton, 0.6f);
+        if (HostButton != null)
+            UIEffect.ButtonPopup(HostButton, 0.6f);
+        if (JoinButton != null)
+            UIEffect.ButtonPopup(JoinButton, 0.6f);
+        if (ExitButton != null)
+            UIEffect.ButtonPopup(ExitButton, 0.6f);
     }
 
     // ¡Ù¬√ ModePanel
@@ -87,13 +90,13 @@ public class StartUIManager : MonoBehaviour
         HideModePanel();
     }
 
-    public void OnPvPClicked()
+    public void OnHostClicked()
     {
         ConnectingPanel.SetActive(true);
         MultiplayerManager.Instance.StartHost();
     }
 
-    public void OnPvCClicked()
+    public void OnJoinClicked()
     {
         ConnectingPanel.SetActive(true);
         MultiplayerManager.Instance.StartClient();
