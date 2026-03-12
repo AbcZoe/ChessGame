@@ -96,7 +96,7 @@ public class PlayerInput : MonoBehaviour
         }
 
         // 一般遊戲階段，自己回合可選棋子
-        if (clickedPiece.team == GameManager.Instance.CurrentTurnTeam)
+        if (clickedPiece.Team.Value == GameManager.Instance.CurrentTurnTeam)
         {
             if (Mouse.current.leftButton.wasPressedThisFrame)
             {
@@ -119,7 +119,7 @@ public class PlayerInput : MonoBehaviour
     {
         if (currentlyDragging == null || !Mouse.current.leftButton.wasReleasedThisFrame) return;
 
-        Vector2Int prevPos = new(currentlyDragging.currentX, currentlyDragging.currentY);
+        Vector2Int prevPos = new(currentlyDragging.X.Value, currentlyDragging.Y.Value);
         bool valid = chessBoard.MoveTo(currentlyDragging, hitPos.x, hitPos.y);
 
         if (!valid)
@@ -133,7 +133,7 @@ public class PlayerInput : MonoBehaviour
     {
         if (currentlyDragging == null || !Mouse.current.leftButton.wasReleasedThisFrame) return;
 
-        currentlyDragging.SetPosition(chessBoard.GetTileCenter(currentlyDragging.currentX, currentlyDragging.currentY));
+        currentlyDragging.SetPosition(chessBoard.GetTileCenter(currentlyDragging.X.Value, currentlyDragging.Y.Value));
         currentlyDragging = null;
         tileHighlighter.RemoveHighlight();
     }

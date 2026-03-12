@@ -34,8 +34,8 @@ public class KingManager : MonoBehaviour
         }
 
         cp.SetKing(true);
-        if (KingMaterials != null && cp.team < KingMaterials.Length)
-            cp.GetComponent<MeshRenderer>().material = KingMaterials[cp.team];
+        if (KingMaterials != null && cp.Team.Value < KingMaterials.Length)
+            cp.GetComponent<MeshRenderer>().material = KingMaterials[cp.Team.Value];
 
         if (kingSelectionState == KingSelectionState.Reselecting)
             FinishReselectKing();
@@ -45,9 +45,9 @@ public class KingManager : MonoBehaviour
 
     private bool IsValidKingSelection(ChessPiece cp)
     {
-        return (kingSelectionState == KingSelectionState.WhiteTeamSelecting && cp.team == 0) ||
-               (kingSelectionState == KingSelectionState.BlackTeamSelecting && cp.team == 1) ||
-               (kingSelectionState == KingSelectionState.Reselecting && cp.team == CurrentTurnTeam);
+        return (kingSelectionState == KingSelectionState.WhiteTeamSelecting && cp.Team.Value == 0) ||
+               (kingSelectionState == KingSelectionState.BlackTeamSelecting && cp.Team.Value == 1) ||
+               (kingSelectionState == KingSelectionState.Reselecting && cp.Team.Value == CurrentTurnTeam);
     }
 
     private void FinishReselectKing()
@@ -79,7 +79,7 @@ public class KingManager : MonoBehaviour
 
         foreach (var piece in chessPieces)
         {
-            if (piece != null && piece.team == currentTeam)
+            if (piece != null && piece.Team.Value == currentTeam)
             {
                 piece.SetKing(false);
                 piece.GetComponent<MeshRenderer>().material = teamMaterials[currentTeam];

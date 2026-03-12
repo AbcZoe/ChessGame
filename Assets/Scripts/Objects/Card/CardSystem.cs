@@ -38,13 +38,11 @@ public class CardSystem : NetworkBehaviour
         {
             // 玩家 1
             CardData card1 = cardDatabase.GetRandomCard();
-            Debug.Log(" 發牌給玩家 1: " + card1.cardName + " (ID: " + card1.Id + ")");
             DealCardClientRpc(0, card1.Id);
             yield return new WaitForSeconds(dealInterval);
 
             // 玩家 2
             CardData card2 = cardDatabase.GetRandomCard();
-            Debug.Log(" 發牌給玩家 2: " + card1.cardName + " (ID: " + card1.Id + ")");
             DealCardClientRpc(1, card2.Id);
             yield return new WaitForSeconds(dealInterval);
         }

@@ -12,7 +12,7 @@ public enum KingSelectionState
     Reselecting
 }
 
-public class ChessBoard : MonoBehaviour
+public class ChessBoard : NetworkBehaviour
 {
     public static ChessBoard Instance { get; private set; }
 
@@ -54,8 +54,11 @@ public class ChessBoard : MonoBehaviour
         // 所有人都生成棋盤
         GenerateGrid(tileSize, TILE_COUNT, TILE_COUNT);
 
-        // 只有 Host 生成棋子
-        if (NetworkManager.Singleton.IsHost)
+    }
+
+    public override void OnNetworkSpawn()
+    {
+        if (IsServer)
         {
             SpawnAllPiece();
             PositionAllPiece();
@@ -169,31 +172,27 @@ public class ChessBoard : MonoBehaviour
         }
 
     }
+
     private ChessPiece SpawnSinglePiece(ChessPieceType type, int team, int x, int y)
     {
         ChessPiece cp = ChessPiecePool.Instance.GetPiece(type);
 
-        cp.team = team;
-        cp.isKing = false;
-
-        // Host 設材質
-        MeshRenderer rend = cp.GetComponent<MeshRenderer>();
-        if (rend != null)
-            rend.material = teamMaterials[team];
-
-        cp.currentX = x;
-        cp.currentY = y;
-        cp.SetPosition(GetTileCenter(x, y), true);
-
-        // Spawn NetworkObject
         NetworkObject netObj = cp.GetComponent<NetworkObject>();
-        if (!netObj.IsSpawned)
+        if (!netObj.IsSpawned && IsServer)
             netObj.Spawn();
 
+        if (IsServer) // 只有 Host 寫入 NetworkVariable
+        {
+            cp.type = type;
+            cp.Team.Value = team;
+            cp.X.Value = x;
+            cp.Y.Value = y;
+            cp.isKing.Value = false;
+        }
+        cp.UpdateVisual();
+        
         chessPieces[x, y] = cp;
-
-        // 告訴 Client 初始化棋子
-        InitPieceClientRpc(netObj.NetworkObjectId, x, y, team);
+        cp.SetPosition(GetTileCenter(x, y), true);
 
         return cp;
     }
@@ -202,22 +201,22 @@ public class ChessBoard : MonoBehaviour
     {
         for (int x = 0; x < TILE_COUNT; x++)
             for (int y = 0; y < TILE_COUNT; y++)
-                if (chessPieces[x, y] != null)
-                    PositionSinglePiece(x, y);
-    }
-
-    public void PositionSinglePiece(int x, int y, bool force = false)
-    {
-        chessPieces[x, y].currentX = x;
-        chessPieces[x, y].currentY = y;
-        chessPieces[x, y].SetPosition(GetTileCenter(x, y), force);
+            {
+                ChessPiece piece = chessPieces[x, y];
+                if (piece != null)
+                {
+                    piece.SetPosition(GetTileCenter(x, y), true);
+                }
+            }
     }
 
     public Vector3 GetTileCenter(int x, int y) => new(x * tileSize + tileSize / 2, yOffset, y * tileSize + tileSize / 2);
 
     public void ResetBoard()
     {
-        // 先把棋盤上的棋子回收到 Pool
+        if (!IsServer) return; // 只有 Host 控制重置流程
+
+        // 將棋盤上的棋子回收到 Pool
         for (int x = 0; x < TILE_COUNT; x++)
         {
             for (int y = 0; y < TILE_COUNT; y++)
@@ -225,6 +224,11 @@ public class ChessBoard : MonoBehaviour
                 ChessPiece piece = chessPieces[x, y];
                 if (piece != null)
                 {
+                    NetworkObject netObj = piece.GetComponent<NetworkObject>();
+
+                    if (netObj != null && netObj.IsSpawned)
+                        netObj.Despawn();
+
                     ChessPiecePool.Instance.ReturnPiece(piece);
                     chessPieces[x, y] = null;
                 }
@@ -236,27 +240,30 @@ public class ChessBoard : MonoBehaviour
 
         // 重新生成棋子
         SpawnAllPiece();
-        PositionAllPiece();
 
-        // Host 生成的棋子確保 NetworkObject Spawn
-        if (NetworkManager.Singleton.IsHost)
+        // 確保每個棋子 NetworkObject 都已 Spawn 並設置 NetworkVariable
+        for (int x = 0; x < TILE_COUNT; x++)
         {
-            foreach (var piece in chessPieces)
+            for (int y = 0; y < TILE_COUNT; y++)
             {
+                ChessPiece piece = chessPieces[x, y];
                 if (piece != null)
                 {
                     NetworkObject netObj = piece.GetComponent<NetworkObject>();
-                    if (netObj != null && !netObj.IsSpawned)
+                    if (!netObj.IsSpawned)
                         netObj.Spawn();
+
+                    // Host 設定 NetworkVariable，Client 自動同步
+                    piece.Team.Value = piece.Team.Value; // 強制 NetworkVariable 同步
+                    piece.X.Value = x;
+                    piece.Y.Value = y;
+                    piece.isKing.Value = false;
+
+                    // 立即更新位置與材質
+                    piece.SetPosition(GetTileCenter(x, y), true);
+                    piece.UpdateVisual();
                 }
             }
-        }
-
-        // 所有棋子都不是 King
-        foreach (var piece in chessPieces)
-        {
-            if (piece != null)
-                piece.isKing = false;
         }
 
         // 重置選王階段
@@ -268,10 +275,7 @@ public class ChessBoard : MonoBehaviour
         UIManager.Instance.ShowMessage("Team 1, please select a piece as your King!");
 
         // 發牌 (如果有 CardSystem)
-        if (NetworkManager.Singleton.IsHost)
-        {
-            StartCoroutine(CardSystem.Instance.DealStartingCardsCoroutine());
-        }
+        StartCoroutine(CardSystem.Instance.DealStartingCardsCoroutine());
     }
 
     #endregion
@@ -279,9 +283,9 @@ public class ChessBoard : MonoBehaviour
     #region Move / Attack
     public bool MoveTo(ChessPiece cp, int x, int y)
     {
-        if (cp == null || !NetworkManager.Singleton.IsHost) return false;
+        if (!IsServer) return false;
 
-        Vector2Int previousPos = new(cp.currentX, cp.currentY);
+        Vector2Int previousPos = new(cp.X.Value, cp.Y.Value);
         Vector2Int targetPos = new(x, y);
         ChessPiece targetPiece = chessPieces[x, y];
 
@@ -290,10 +294,10 @@ public class ChessBoard : MonoBehaviour
 
         if (!isMove && !isAttack) return false;
 
-        if (isAttack && targetPiece != null && targetPiece.team != cp.team)
+        if (isAttack && targetPiece != null && targetPiece.Team != cp.Team)
         {
-            if (targetPiece.isKing)
-                GameManager.Instance.CheckMate(cp.team);
+            if (targetPiece.isKing.Value)
+                GameManager.Instance.CheckMate(cp.Team.Value);
 
             GraveyardManager.Instance.AddDeadPiece(targetPiece);
         }
@@ -303,70 +307,12 @@ public class ChessBoard : MonoBehaviour
         chessPieces[x, y] = cp;
         chessPieces[previousPos.x, previousPos.y] = null;
 
-        cp.SetPosition(GetTileCenter(x, y), true);
+        cp.X.Value = x;
+        cp.Y.Value = y;
 
         GameManager.Instance.SwitchTurn();
 
-        // 通知 Client
-        MovePieceClientRpc(previousPos.x, previousPos.y, x, y);
-
         return true;
-    }
-
-    [ClientRpc]
-    private void InitPieceClientRpc(ulong pieceId, int x, int y, int team)
-    {
-        if (NetworkManager.Singleton.IsHost) return; // Host 不需要初始化
-
-        if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(pieceId, out NetworkObject netObj))
-            return;
-
-        ChessPiece cp = netObj.GetComponent<ChessPiece>();
-        if (cp == null) return;
-
-        // 設隊伍材質
-        cp.team = team;
-        MeshRenderer rend = cp.GetComponent<MeshRenderer>();
-        if (rend != null)
-            rend.material = teamMaterials[team];
-
-        // 設位置
-        cp.currentX = x;
-        cp.currentY = y;
-        cp.SetPosition(ChessBoard.Instance.GetTileCenter(x, y), true);
-
-        // 存入棋盤陣列
-        if (ChessBoard.Instance.chessPieces == null)
-            ChessBoard.Instance.chessPieces = new ChessPiece[ChessBoard.Instance.TILE_COUNT, ChessBoard.Instance.TILE_COUNT];
-
-        ChessBoard.Instance.chessPieces[x, y] = cp;
-    }
-
-    [ClientRpc]
-    private void MovePieceClientRpc(int fromX, int fromY, int toX, int toY)
-    {
-        if (NetworkManager.Singleton.IsHost) return;
-
-        ChessPiece cp = chessPieces[fromX, fromY];
-        if (cp == null) return;
-
-        chessPieces[toX, toY] = cp;
-        chessPieces[fromX, fromY] = null;
-        cp.SetPosition(GetTileCenter(toX, toY), true);
-    }
-
-    [ServerRpc(RequireOwnership = false)]
-    public void RequestMovePieceServerRpc(ulong pieceId, int x, int y)
-    {
-        if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(pieceId, out NetworkObject netObj))
-            return;
-
-        ChessPiece piece = netObj.GetComponent<ChessPiece>();
-
-        if (piece == null)
-            return;
-
-        MoveTo(piece, x, y);
     }
     #endregion
 }

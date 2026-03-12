@@ -15,7 +15,7 @@ public class Knight : ChessPiece
 
         foreach (var offset in moveOffsets)
         {
-            Vector2Int pos = new(currentX + offset.x, currentY + offset.y);
+            Vector2Int pos = new(X.Value + offset.x, Y.Value + offset.y);
             if (!IsInsideBoard(pos, tileCountX, tileCountY))
                 continue;
 
@@ -33,12 +33,12 @@ public class Knight : ChessPiece
 
         foreach (var offset in moveOffsets)
         {
-            Vector2Int pos = new(currentX + offset.x, currentY + offset.y);
+            Vector2Int pos = new(X.Value + offset.x, Y.Value + offset.y);
             if (!IsInsideBoard(pos, tileCountX, tileCountY))
                 continue;
 
             ChessPiece target = board[pos.x, pos.y];
-            if (target != null && target.team != team)
+            if (target != null && target.Team.Value != Team.Value)
                 attacks.Add(pos);
         }
 

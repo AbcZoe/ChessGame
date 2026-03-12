@@ -18,7 +18,7 @@ public class Bishop : ChessPiece
         {
             for (int i = 1; i < Mathf.Max(tileCountX, tileCountY); i++)
             {
-                Vector2Int pos = new(currentX + dir.x * i, currentY + dir.y * i);
+                Vector2Int pos = new(X.Value + dir.x * i, Y.Value + dir.y * i);
                 if (!IsInsideBoard(pos, tileCountX, tileCountY))
                     break;
 
@@ -27,7 +27,7 @@ public class Bishop : ChessPiece
                     moves.Add(pos);
                 else
                 {
-                    if (target.team != team)
+                    if (target.Team.Value != Team.Value)
                         moves.Add(pos);
                     break;
                 }
@@ -52,12 +52,12 @@ public class Bishop : ChessPiece
         {
             for (int i = 1; i < Mathf.Max(tileCountX, tileCountY); i++)
             {
-                Vector2Int pos = new(currentX + dir.x * i, currentY + dir.y * i);
+                Vector2Int pos = new(X.Value + dir.x * i, Y.Value + dir.y * i);
                 if (!IsInsideBoard(pos, tileCountX, tileCountY))
                     break;
 
                 ChessPiece target = board[pos.x, pos.y];
-                if (target != null && target.team != team)
+                if (target != null && target.Team.Value != Team.Value)
                 {
                     attacks.Add(pos);
                     break;

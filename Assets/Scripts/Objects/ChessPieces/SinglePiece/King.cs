@@ -14,7 +14,7 @@ public class King : ChessPiece
         List<Vector2Int> moves = new();
         foreach (var offset in moveOffsets)
         {
-            Vector2Int pos = new(currentX + offset.x, currentY + offset.y);
+            Vector2Int pos = new(X.Value + offset.x, Y.Value + offset.y);
             if (!IsInsideBoard(pos, tileCountX, tileCountY))
                 continue;
 
@@ -29,12 +29,12 @@ public class King : ChessPiece
         List<Vector2Int> attacks = new();
         foreach (var offset in moveOffsets)
         {
-            Vector2Int pos = new(currentX + offset.x, currentY + offset.y);
+            Vector2Int pos = new(X.Value + offset.x, Y.Value + offset.y);
             if (!IsInsideBoard(pos, tileCountX, tileCountY))
                 continue;
 
             ChessPiece target = board[pos.x, pos.y];
-            if (target != null && target.team != team)
+            if (target != null && target.Team.Value != Team.Value)
                 attacks.Add(pos);
         }
         return attacks;

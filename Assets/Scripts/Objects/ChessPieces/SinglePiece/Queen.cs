@@ -26,7 +26,7 @@ public class Queen : ChessPiece
         {
             for (int i = 1; i < Mathf.Max(tileCountX, tileCountY); i++)
             {
-                Vector2Int pos = new(currentX + dir.x * i, currentY + dir.y * i);
+                Vector2Int pos = new(X.Value + dir.x * i, Y.Value + dir.y * i);
                 if (!IsInsideBoard(pos, tileCountX, tileCountY))
                     break;
 
@@ -34,7 +34,7 @@ public class Queen : ChessPiece
 
                 if (target == null && onlyMoves)
                     result.Add(pos);
-                else if (target != null && target.team != team && !onlyMoves)
+                else if (target != null && target.Team.Value != Team.Value && !onlyMoves)
                 {
                     result.Add(pos);
                     break;

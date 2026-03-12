@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Unity.Netcode;
+using Unity.Services.Matchmaker.Models;
 using UnityEngine;
 
 public enum ChessPieceType
@@ -15,19 +16,15 @@ public enum ChessPieceType
 
 public class ChessPiece : NetworkBehaviour
 {
-    public int team;
-    public int currentX;
-    public int currentY;
+    public NetworkVariable<int> Team = new();
+    public NetworkVariable<int> X = new();
+    public NetworkVariable<int> Y = new();
     public ChessPieceType type;
-
-    public bool isKing = false;
+    public NetworkVariable<bool> isKing = new(false);
 
     private Vector3 desiredPosition;
     private Vector3 desiredScale = Vector3.one;
     public float baseScale = 1f; // Inspector 可調比例大小
-
-    public NetworkObject NetObj => GetComponent<NetworkObject>();
-    public ulong NetId => NetObj != null ? NetObj.NetworkObjectId : 0;
 
     private void Start()
     {
@@ -38,19 +35,6 @@ public class ChessPiece : NetworkBehaviour
     {
         transform.position = Vector3.Lerp(transform.position, desiredPosition, Time.deltaTime * 10);
         transform.localScale = Vector3.Lerp(transform.localScale, desiredScale, Time.deltaTime * 10);
-    }
-
-    public void ResetPiece()
-    {
-        isKing = false;
-        team = 0;
-        type = ChessPieceType.None;
-        desiredScale = Vector3.one * baseScale;
-    }
-
-    public void SetKing(bool value)
-    {
-        isKing = value;
     }
 
     public virtual List<Vector2Int> GetAvailableMoves(ref ChessPiece[,] board, int tileCountX, int tileCountY)
@@ -77,5 +61,70 @@ public class ChessPiece : NetworkBehaviour
             transform.localScale = desiredScale;
     }
 
+    public void SetKing(bool value)
+    {
+        isKing.Value = value;
+    }
 
+    public void ResetPiece()
+    {
+        Team.Value = 0;
+        X.Value = 0;
+        Y.Value = 0;
+        isKing.Value = false;
+        desiredScale = Vector3.one * baseScale;
+        gameObject.SetActive(false);
+    }
+
+    #region Server Methods
+    public NetworkObject NetObj => GetComponent<NetworkObject>();
+    public ulong NetId => NetObj != null ? NetObj.NetworkObjectId : 0;
+
+    public override void OnNetworkSpawn()
+    {
+        UpdatePosition();   // 立即對齊位置
+        UpdateVisual();     // 立即更新隊伍顏色
+        UpdateKingVisual(); // 如果是 King，更新 King 顏色
+
+        // 註冊 NetworkVariable 變化
+        Team.OnValueChanged += (oldValue, newValue) => UpdateVisual();
+        X.OnValueChanged += (oldValue, newValue) => UpdatePosition();
+        Y.OnValueChanged += (oldValue, newValue) => UpdatePosition();
+        isKing.OnValueChanged += (oldValue, newValue) => UpdateKingVisual();
+
+        // 登記到棋盤
+        if (ChessBoard.Instance != null)
+        {
+            ChessBoard.Instance.chessPieces[X.Value, Y.Value] = this;
+        }
+
+    }
+
+    public void UpdateVisual()
+    {
+        if (ChessBoard.Instance == null) return;
+
+        MeshRenderer rend = GetComponent<MeshRenderer>();
+        if (rend != null)
+            rend.material = ChessBoard.Instance.teamMaterials[Team.Value];
+    }
+
+    void UpdatePosition()
+    {
+        if (ChessBoard.Instance == null) return;
+
+        Vector3 pos = ChessBoard.Instance.GetTileCenter(X.Value, Y.Value);
+        SetPosition(pos, true);
+    }
+
+    private void UpdateKingVisual()
+    {
+        MeshRenderer rend = GetComponent<MeshRenderer>();
+        if (rend != null && isKing.Value)
+            rend.material = ChessBoard.Instance.KingMaterials[Team.Value];
+        else
+            UpdateVisual();
+    }
+
+    #endregion
 }

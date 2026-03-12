@@ -30,7 +30,7 @@ public class GraveyardManager : MonoBehaviour
     {
         if (piece == null) return;
 
-        int team = piece.team;
+        int team = piece.Team.Value;
         deadPieces[team].Add(piece);
 
         piece.SetScale(Vector3.one * deathSize, true);
