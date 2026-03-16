@@ -109,12 +109,28 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Queen
   ShowTopMostFoldoutHeaderGroup: 1
-  team: 0
-  currentX: 0
-  currentY: 0
+  Team:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 0
+  X:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 0
+  Y:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 0
   type: 4
-  isKing: 0
-  baseScale: 1
+  isKing:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 0
+  baseScale: 100
 --- !u!114 &-4097967713234106833
 MonoBehaviour:
   m_ObjectHideFlags: 0

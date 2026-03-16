@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Unity.Netcode;
+using Unity.VisualScripting;
 using UnityEngine;
 using static ChessPiece;
 
@@ -67,13 +68,9 @@ public class ChessBoard : NetworkBehaviour
 
     private void Start()
     {
-        if (!NetworkManager.Singleton.IsHost)
-        {
-            chessPieces = new ChessPiece[TILE_COUNT, TILE_COUNT];
-        }
-
         UIManager.Instance.ShowMessage("Team 1, please select a piece as your King!");
     }
+
     #endregion
 
     #region Tile Generation
@@ -177,6 +174,9 @@ public class ChessBoard : NetworkBehaviour
     {
         ChessPiece cp = ChessPiecePool.Instance.GetPiece(type);
 
+        chessPieces[x, y] = cp;
+        cp.SetPosition(GetTileCenter(x, y), true);
+
         NetworkObject netObj = cp.GetComponent<NetworkObject>();
         if (!netObj.IsSpawned && IsServer)
             netObj.Spawn();
@@ -189,11 +189,6 @@ public class ChessBoard : NetworkBehaviour
             cp.Y.Value = y;
             cp.isKing.Value = false;
         }
-        cp.UpdateVisual();
-        
-        chessPieces[x, y] = cp;
-        cp.SetPosition(GetTileCenter(x, y), true);
-
         return cp;
     }
 
@@ -214,67 +209,40 @@ public class ChessBoard : NetworkBehaviour
 
     public void ResetBoard()
     {
-        if (!IsServer) return; // 只有 Host 控制重置流程
+        if (!IsServer) return;
 
-        // 將棋盤上的棋子回收到 Pool
+        // 先回收棋盤上的棋子
         for (int x = 0; x < TILE_COUNT; x++)
         {
             for (int y = 0; y < TILE_COUNT; y++)
             {
                 ChessPiece piece = chessPieces[x, y];
-                if (piece != null)
-                {
-                    NetworkObject netObj = piece.GetComponent<NetworkObject>();
+                if (piece == null) continue;
 
-                    if (netObj != null && netObj.IsSpawned)
-                        netObj.Despawn();
+                NetworkObject netObj = piece.GetComponent<NetworkObject>();
+                if (netObj != null && netObj.IsSpawned)
+                    netObj.Despawn(false);
 
-                    ChessPiecePool.Instance.ReturnPiece(piece);
-                    chessPieces[x, y] = null;
-                }
+                piece.ResetPiece();
+                ChessPiecePool.Instance.ReturnPiece(piece);
+
+                chessPieces[x, y] = null;
             }
         }
 
-        // 重置死亡棋子
-        GraveyardManager.Instance.ResetGraveyard();
+        // 回收死亡棋子
+        GraveyardManager.Instance.ResetGraveyard(); // 確保這裡只做 ReturnPiece，且不要 spawn/despawn
 
-        // 重新生成棋子
+        // 生成棋盤上的新棋子
         SpawnAllPiece();
+        PositionAllPiece();
 
-        // 確保每個棋子 NetworkObject 都已 Spawn 並設置 NetworkVariable
-        for (int x = 0; x < TILE_COUNT; x++)
-        {
-            for (int y = 0; y < TILE_COUNT; y++)
-            {
-                ChessPiece piece = chessPieces[x, y];
-                if (piece != null)
-                {
-                    NetworkObject netObj = piece.GetComponent<NetworkObject>();
-                    if (!netObj.IsSpawned)
-                        netObj.Spawn();
-
-                    // Host 設定 NetworkVariable，Client 自動同步
-                    piece.Team.Value = piece.Team.Value; // 強制 NetworkVariable 同步
-                    piece.X.Value = x;
-                    piece.Y.Value = y;
-                    piece.isKing.Value = false;
-
-                    // 立即更新位置與材質
-                    piece.SetPosition(GetTileCenter(x, y), true);
-                    piece.UpdateVisual();
-                }
-            }
-        }
-
-        // 重置選王階段
+        // 重置 UI
         kingSelectionState = KingSelectionState.WhiteTeamSelecting;
-
-        // 更新 UI
         UIManager.Instance.HideVictory();
         UIManager.Instance.HideRoundText();
         UIManager.Instance.ShowMessage("Team 1, please select a piece as your King!");
 
-        // 發牌 (如果有 CardSystem)
         StartCoroutine(CardSystem.Instance.DealStartingCardsCoroutine());
     }
 

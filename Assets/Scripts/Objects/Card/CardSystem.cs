@@ -15,7 +15,7 @@ public class CardSystem : NetworkBehaviour
     [SerializeField] private CardDatabase cardDatabase;
 
     [Header("開局設定")]
-    [SerializeField] private int startCardCount = 3;
+    [SerializeField] private int startCardCount = 5;
     [SerializeField] private float dealInterval = 0.3f;
 
     private void Awake()
@@ -34,6 +34,9 @@ public class CardSystem : NetworkBehaviour
 
     public IEnumerator DealStartingCardsCoroutine()
     {
+        player1Hand.ClearHand();
+        player2Hand.ClearHand();
+
         for (int i = 0; i < startCardCount; i++)
         {
             // 玩家 1

@@ -1536,7 +1536,7 @@ MonoBehaviour:
   player1Hand: {fileID: 255370293}
   player2Hand: {fileID: 1837072129}
   cardDatabase: {fileID: 11400000, guid: cacbd7249ba37dd4fb6cc3bd1c088527, type: 2}
-  startCardCount: 3
+  startCardCount: 5
   dealInterval: 0.1
 --- !u!114 &408139559
 MonoBehaviour:
@@ -2507,7 +2507,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1301e54518ccd4046970031841221941, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GraveyardManager
-  deathSize: 40
+  deathSize: 0.5
   deathSpacing: 1
   yOffset: 0.2
   tileSize: 1

@@ -33,26 +33,31 @@ public class ChessPiecePool : Singleton<ChessPiecePool>
     public ChessPiece GetPiece(ChessPieceType type)
     {
         ChessPiece piece;
-
         if (pool[type].Count > 0)
             piece = pool[type].Dequeue();
         else
             piece = Instantiate(chessPiecePrefabs[(int)type - 1]);
 
+        piece.ResetPiece();
         piece.gameObject.SetActive(true);
-
-        NetworkObject netObj = piece.GetComponent<NetworkObject>();
-
-        if (NetworkManager.Singleton.IsServer && netObj != null && !netObj.IsSpawned)
-            netObj.Spawn();
+        
 
         return piece;
     }
 
     public void ReturnPiece(ChessPiece piece)
     {
+        NetworkObject netObj = piece.GetComponent<NetworkObject>();
+
+        if (netObj != null && netObj.IsSpawned)
+            netObj.Despawn(false);   // ¤£ destroy
+
         piece.ResetPiece();
-        piece.transform.parent = transform;
+        piece.gameObject.SetActive(false);
+
+        if (!pool.ContainsKey(piece.type))
+            pool[piece.type] = new Queue<ChessPiece>();
+
         pool[piece.type].Enqueue(piece);
     }
 }
