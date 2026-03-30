@@ -35,6 +35,10 @@ public class ChessBoard : NetworkBehaviour
     [Header("Tile Prefab")]
     [SerializeField] private GameObject tilePrefab; // Quad + Collider + NetworkObject
 
+    [Header("Pieces Prefab")]
+    [SerializeField] private List<ChessPieceData> allPieceData;
+    private Dictionary<string, ChessPieceData> pieceDataDict;
+
     [Header("References")]
     public GameObject[,] tiles;
     public Renderer[,] tileRenderers;
@@ -51,6 +55,12 @@ public class ChessBoard : NetworkBehaviour
             return;
         }
         Instance = this;
+
+        pieceDataDict = new Dictionary<string, ChessPieceData>();
+        foreach (var data in allPieceData)
+        {
+            pieceDataDict[data.pieceName] = data;
+        }
 
         // 所有人都生成棋盤
         GenerateGrid(tileSize, TILE_COUNT, TILE_COUNT);
@@ -137,58 +147,69 @@ public class ChessBoard : NetworkBehaviour
         int secondTeam = 1;
 
         // ===== Team 1 =====
-        chessPieces[1, 0] = SpawnSinglePiece(ChessPieceType.Rook, firstTeam, 1, 0);
-        chessPieces[2, 0] = SpawnSinglePiece(ChessPieceType.Bishop, firstTeam, 2, 0);
-        chessPieces[3, 0] = SpawnSinglePiece(ChessPieceType.King, firstTeam, 3, 0);
-        chessPieces[4, 0] = SpawnSinglePiece(ChessPieceType.Queen, firstTeam, 4, 0);
-        chessPieces[5, 0] = SpawnSinglePiece(ChessPieceType.Bishop, firstTeam, 5, 0);
-        chessPieces[6, 0] = SpawnSinglePiece(ChessPieceType.Rook, firstTeam, 6, 0);
+        chessPieces[1, 0] = SpawnSinglePiece("Rook", firstTeam, 1, 0);
+        chessPieces[2, 0] = SpawnSinglePiece("Bishop", firstTeam, 2, 0);
+        chessPieces[3, 0] = SpawnSinglePiece("King", firstTeam, 3, 0);
+        chessPieces[4, 0] = SpawnSinglePiece("Queen", firstTeam, 4, 0);
+        chessPieces[5, 0] = SpawnSinglePiece("Bishop", firstTeam, 5, 0);
+        chessPieces[6, 0] = SpawnSinglePiece("Rook", firstTeam, 6, 0);
 
         for (int x = 1; x < TILE_COUNT - 1; x++)
         {
             if (x == 2 || x == 5)
-                chessPieces[x, 1] = SpawnSinglePiece(ChessPieceType.Knight, firstTeam, x, 1);
+                chessPieces[x, 1] = SpawnSinglePiece("Knight", firstTeam, x, 1);
             else
-                chessPieces[x, 1] = SpawnSinglePiece(ChessPieceType.Pawn, firstTeam, x, 1);
+                chessPieces[x, 1] = SpawnSinglePiece("Pawn", firstTeam, x, 1);
         }
 
         // ===== Team 2 =====
-        chessPieces[1, 7] = SpawnSinglePiece(ChessPieceType.Rook, secondTeam, 1, 7);
-        chessPieces[2, 7] = SpawnSinglePiece(ChessPieceType.Bishop, secondTeam, 2, 7);
-        chessPieces[3, 7] = SpawnSinglePiece(ChessPieceType.King, secondTeam, 3, 7);
-        chessPieces[4, 7] = SpawnSinglePiece(ChessPieceType.Queen, secondTeam, 4, 7);
-        chessPieces[5, 7] = SpawnSinglePiece(ChessPieceType.Bishop, secondTeam, 5, 7);
-        chessPieces[6, 7] = SpawnSinglePiece(ChessPieceType.Rook, secondTeam, 6, 7);
+        chessPieces[1, 7] = SpawnSinglePiece("Rook", secondTeam, 1, 7);
+        chessPieces[2, 7] = SpawnSinglePiece("Bishop", secondTeam, 2, 7);
+        chessPieces[3, 7] = SpawnSinglePiece("King", secondTeam, 3, 7);
+        chessPieces[4, 7] = SpawnSinglePiece("Queen", secondTeam, 4, 7);
+        chessPieces[5, 7] = SpawnSinglePiece("Bishop", secondTeam, 5, 7);
+        chessPieces[6, 7] = SpawnSinglePiece("Rook", secondTeam, 6, 7);
 
         for (int x = 1; x < TILE_COUNT - 1; x++)
         {
             if (x == 2 || x == 5)
-                chessPieces[x, 6] = SpawnSinglePiece(ChessPieceType.Knight, secondTeam, x, 6);
+                chessPieces[x, 6] = SpawnSinglePiece("Knight", secondTeam, x, 6);
             else
-                chessPieces[x, 6] = SpawnSinglePiece(ChessPieceType.Pawn, secondTeam, x, 6);
+                chessPieces[x, 6] = SpawnSinglePiece("Pawn", secondTeam, x, 6);
         }
 
     }
 
-    private ChessPiece SpawnSinglePiece(ChessPieceType type, int team, int x, int y)
+    private ChessPiece SpawnSinglePiece(string pieceName, int team, int x, int y)
     {
-        ChessPiece cp = ChessPiecePool.Instance.GetPiece(type);
+        if (!pieceDataDict.ContainsKey(pieceName))
+        {
+            Debug.LogError($"找不到棋子資料：{pieceName}");
+            return null;
+        }
 
-        chessPieces[x, y] = cp;
-        cp.SetPosition(GetTileCenter(x, y), true);
+        ChessPieceData data = pieceDataDict[pieceName];
+        ChessPiece cp = Instantiate(data.prefab, transform);
+
+        // **直接給材質**
+        cp.GetComponent<MeshRenderer>().material = ChessBoard.Instance.teamMaterials[team];
 
         NetworkObject netObj = cp.GetComponent<NetworkObject>();
-        if (!netObj.IsSpawned && IsServer)
+        if (IsServer)
             netObj.Spawn();
-
-        if (IsServer) // 只有 Host 寫入 NetworkVariable
+        
+        if (IsServer)
         {
-            cp.type = type;
             cp.Team.Value = team;
             cp.X.Value = x;
             cp.Y.Value = y;
             cp.isKing.Value = false;
         }
+
+        cp.SetPosition(GetTileCenter(x, y), true);
+
+        chessPieces[x, y] = cp;
+
         return cp;
     }
 
@@ -221,10 +242,7 @@ public class ChessBoard : NetworkBehaviour
 
                 NetworkObject netObj = piece.GetComponent<NetworkObject>();
                 if (netObj != null && netObj.IsSpawned)
-                    netObj.Despawn(false);
-
-                piece.ResetPiece();
-                ChessPiecePool.Instance.ReturnPiece(piece);
+                    netObj.Despawn(true);
 
                 chessPieces[x, y] = null;
             }
@@ -237,6 +255,7 @@ public class ChessBoard : NetworkBehaviour
         SpawnAllPiece();
         PositionAllPiece();
 
+        GameManager.Instance.isWhiteTeamTurn.Value = true;
         // 重置 UI
         kingSelectionState = KingSelectionState.WhiteTeamSelecting;
         UIManager.Instance.HideVictory();

@@ -56,19 +56,12 @@ public class GraveyardManager : MonoBehaviour
             {
                 if (piece == null) continue;
 
-                // 1. 先 Despawn NetworkObject 避免 Authority 或 SpawnStateException
                 NetworkObject netObj = piece.GetComponent<NetworkObject>();
                 if (netObj != null && netObj.IsSpawned)
-                    netObj.Despawn(false);
-
-                // 2. 重置棋子狀態
-                piece.ResetPiece();  // 包含 scale、Team、isKing、X/Y
-
-                // 3. 回 Pool
-                ChessPiecePool.Instance.ReturnPiece(piece);
+                    netObj.Despawn(true);
             }
 
-            // 4. 清空死亡區列表
+            //清空死亡區列表
             kvp.Value.Clear();
         }
     }

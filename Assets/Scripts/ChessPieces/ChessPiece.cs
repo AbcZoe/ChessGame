@@ -4,23 +4,11 @@ using Unity.Netcode;
 using Unity.Services.Matchmaker.Models;
 using UnityEngine;
 
-public enum ChessPieceType
-{
-    None = 0,
-    Bishop = 1,
-    Knight = 2,
-    King = 3,
-    Queen = 4,
-    Pawn = 5,
-    Rook = 6
-}
-
 public class ChessPiece : NetworkBehaviour
 {
     public NetworkVariable<int> Team = new();
     public NetworkVariable<int> X = new();
     public NetworkVariable<int> Y = new();
-    public ChessPieceType type;
     public NetworkVariable<bool> isKing = new(false);
 
     private Vector3 desiredPosition;
@@ -72,10 +60,14 @@ public class ChessPiece : NetworkBehaviour
 
     public void ResetPiece()
     {
-        Team.Value = 0;
-        X.Value = 0;
-        Y.Value = 0;
-        isKing.Value = false;
+        if (IsServer)
+        {
+            Team.Value = 0;
+            X.Value = 0;
+            Y.Value = 0;
+            isKing.Value = false;
+        }
+
         desiredScale = Vector3.one * baseScale;
         transform.localScale = desiredScale;
 
@@ -88,32 +80,20 @@ public class ChessPiece : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
-        // 註冊 NetworkVariable 變化
+        // 訂閱 NetworkVariable 變化
         Team.OnValueChanged += (oldValue, newValue) => UpdateVisual();
         X.OnValueChanged += (oldValue, newValue) => UpdatePosition();
         Y.OnValueChanged += (oldValue, newValue) => UpdatePosition();
         isKing.OnValueChanged += (oldValue, newValue) => UpdateKingVisual();        
-        
-        UpdatePosition();   // 立即對齊位置
-        UpdateVisual();     // 立即更新隊伍顏色
-        UpdateKingVisual(); // 如果是 King，更新 King 顏色
 
-        // 登記到棋盤
+        // 位置先對齊
+        UpdatePosition();
+
+        // 登記到棋盤陣列
         if (ChessBoard.Instance != null && ChessBoard.Instance.chessPieces != null)
         {
             ChessBoard.Instance.chessPieces[X.Value, Y.Value] = this;
         }
-        // 強制刷新一次（避免初始值不觸發）
-        StartCoroutine(ForceRefresh());
-
-    }
-
-    IEnumerator ForceRefresh()
-    {
-        yield return null;
-
-        UpdateVisual();
-        UpdateKingVisual();
     }
 
     public void UpdateVisual()

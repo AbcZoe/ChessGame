@@ -1,5 +1,6 @@
 using UnityEngine;
 
+[CreateAssetMenu(fileName = "NewCardData", menuName = "Cards/CardData")]
 public abstract class CardData : ScriptableObject
 {
     [Header("基本資訊")]

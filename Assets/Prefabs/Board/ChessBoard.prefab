@@ -87,4 +87,11 @@ MonoBehaviour:
   dragOffset: 1
   TILE_COUNT: 8
   tilePrefab: {fileID: 389149698762498689, guid: a6a30c19d9c89be45b1182c5032368a2, type: 3}
+  allPieceData:
+  - {fileID: 11400000, guid: b0091e396de4e9b47bdce76d4c3c1cd5, type: 2}
+  - {fileID: 11400000, guid: 8f926e23a0eb8044a9d3fc308c682709, type: 2}
+  - {fileID: 11400000, guid: 4afbfa49b0cd6f5479422e003e7e571f, type: 2}
+  - {fileID: 11400000, guid: c2c6f0b6795fccb49b00d58baa7dac5d, type: 2}
+  - {fileID: 11400000, guid: 6e027270a483ff04daa5f635a67e4ab5, type: 2}
+  - {fileID: 11400000, guid: 07250850f96fc914f875c8c2c3d937bf, type: 2}
   kingSelectionState: 1

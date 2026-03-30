@@ -1,0 +1,16 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7525b5d44052bb646b69da747cfc16ce, type: 3}
+  m_Name: Rook
+  m_EditorClassIdentifier: Assembly-CSharp::ChessPieceData
+  pieceName: Rook
+  prefab: {fileID: 6507099306358124424, guid: cd75aa316d123b64ca3afb8644e02dc0, type: 3}
