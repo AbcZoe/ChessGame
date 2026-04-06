@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Unity.Netcode;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.Rendering;
 using static ChessPiece;
 
 public enum KingSelectionState
@@ -44,7 +45,12 @@ public class ChessBoard : NetworkBehaviour
     public Renderer[,] tileRenderers;
     public ChessPiece[,] chessPieces;
 
-    public KingSelectionState kingSelectionState = KingSelectionState.WhiteTeamSelecting;
+    public NetworkVariable<KingSelectionState> kingSelectionState =
+        new NetworkVariable<KingSelectionState>(
+            KingSelectionState.WhiteTeamSelecting,
+            NetworkVariableReadPermission.Everyone,
+            NetworkVariableWritePermission.Server  
+        );
 
     #region Unity Methods
     private void Awake()
@@ -65,7 +71,11 @@ public class ChessBoard : NetworkBehaviour
         // 所有人都生成棋盤
         GenerateGrid(tileSize, TILE_COUNT, TILE_COUNT);
 
+        // Client 也先建立陣列，避免 NullReference
+        if (chessPieces == null)
+            chessPieces = new ChessPiece[TILE_COUNT, TILE_COUNT];
     }
+
 
     public override void OnNetworkSpawn()
     {
@@ -73,14 +83,49 @@ public class ChessBoard : NetworkBehaviour
         {
             SpawnAllPiece();
             PositionAllPiece();
+
+            kingSelectionState.Value = KingSelectionState.WhiteTeamSelecting;
+        }
+
+        kingSelectionState.OnValueChanged += OnKingStateChanged;
+        OnKingStateChanged(KingSelectionState.None, kingSelectionState.Value);
+
+    }
+
+    private void OnKingStateChanged(KingSelectionState oldState, KingSelectionState newState)
+    {
+        HandleKingStateUI(newState);
+    }
+
+    private void HandleKingStateUI(KingSelectionState state)
+    {
+        switch (state)
+        {
+            case KingSelectionState.WhiteTeamSelecting:
+                GameManager.Instance?.ShowMessageClientRpc("Team 1, please select a piece as your King!");
+                break;
+
+            case KingSelectionState.BlackTeamSelecting:
+                GameManager.Instance?.ShowMessageClientRpc("Team 2, please select a piece as your King!");
+                break;
+
+            case KingSelectionState.Completed:
+                GameManager.Instance?.ShowMessageClientRpc("Both teams have chosen their Kings. The game starts!", 2f);
+                GameManager.Instance?.ShowTurnClientRpc(0);
+                break;
+
+            case KingSelectionState.Reselecting:
+                GameManager.Instance?.ShowMessageClientRpc($"Team {GameManager.Instance.CurrentTurnTeam + 1}, please select a new King!");
+                break;
         }
     }
 
-    private void Start()
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    public void RequestSetKingStateServerRpc(KingSelectionState newState)
     {
-        UIManager.Instance.ShowMessage("Team 1, please select a piece as your King!");
+        if (!IsServer) return; // 只有 Server 可以改 NetworkVariable
+        kingSelectionState.Value = newState;
     }
-
     #endregion
 
     #region Tile Generation
@@ -191,9 +236,6 @@ public class ChessBoard : NetworkBehaviour
         ChessPieceData data = pieceDataDict[pieceName];
         ChessPiece cp = Instantiate(data.prefab, transform);
 
-        // **直接給材質**
-        cp.GetComponent<MeshRenderer>().material = ChessBoard.Instance.teamMaterials[team];
-
         NetworkObject netObj = cp.GetComponent<NetworkObject>();
         if (IsServer)
             netObj.Spawn();
@@ -255,12 +297,12 @@ public class ChessBoard : NetworkBehaviour
         SpawnAllPiece();
         PositionAllPiece();
 
-        GameManager.Instance.isWhiteTeamTurn.Value = true;
         // 重置 UI
-        kingSelectionState = KingSelectionState.WhiteTeamSelecting;
-        UIManager.Instance.HideVictory();
+        GameManager.Instance.isWhiteTeamTurn.Value = true;
+        kingSelectionState.Value = KingSelectionState.WhiteTeamSelecting;
         UIManager.Instance.HideRoundText();
-        UIManager.Instance.ShowMessage("Team 1, please select a piece as your King!");
+        GameManager.Instance.HideVictoryClientRpc();
+        GameManager.Instance.ShowMessageClientRpc("Team 1, please select a piece as your King!", 0f);
 
         StartCoroutine(CardSystem.Instance.DealStartingCardsCoroutine());
     }

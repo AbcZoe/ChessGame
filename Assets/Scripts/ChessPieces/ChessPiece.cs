@@ -80,20 +80,59 @@ public class ChessPiece : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
+        base.OnNetworkSpawn();
+        // 這裡保證每個 Client 都會把材質套好
+        var rend = GetComponent<MeshRenderer>();
+        if (rend != null && ChessBoard.Instance != null)
+        {
+            rend.material = ChessBoard.Instance.teamMaterials[Team.Value];
+        }
         // 訂閱 NetworkVariable 變化
         Team.OnValueChanged += (oldValue, newValue) => UpdateVisual();
         X.OnValueChanged += (oldValue, newValue) => UpdatePosition();
         Y.OnValueChanged += (oldValue, newValue) => UpdatePosition();
         isKing.OnValueChanged += (oldValue, newValue) => UpdateKingVisual();        
 
-        // 位置先對齊
         UpdatePosition();
+        UpdateVisual();
 
         // 登記到棋盤陣列
         if (ChessBoard.Instance != null && ChessBoard.Instance.chessPieces != null)
         {
             ChessBoard.Instance.chessPieces[X.Value, Y.Value] = this;
         }
+    }
+
+    // 這個方法只在本地呼叫
+    public void RequestMove(int targetX, int targetY)
+    {
+        if (!IsOwner) return; // 只能自己發起移動請求
+        RequestMoveServerRpc(targetX, targetY);
+    }
+
+    // ServerRpc 寫法：所有人都可呼叫，Server 驗證
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    private void RequestMoveServerRpc(int targetX, int targetY)
+    {
+        if (!IsServer) return;
+
+        // 這裡直接用 Owner 判斷
+        if (OwnerClientId != NetworkManager.Singleton.LocalClientId)
+            return;
+
+        bool validMove = ChessBoard.Instance.MoveTo(this, targetX, targetY);
+
+        if (!validMove)
+        {
+            RevertPositionClientRpc(X.Value, Y.Value);
+        }
+    }
+
+    // ClientRpc：還原位置
+    [ClientRpc]
+    private void RevertPositionClientRpc(int x, int y, ClientRpcParams clientRpcParams = default)
+    {
+        SetPosition(ChessBoard.Instance.GetTileCenter(x, y), true);
     }
 
     public void UpdateVisual()

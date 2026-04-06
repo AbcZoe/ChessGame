@@ -1,10 +1,15 @@
+using System.Collections;
+using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
 
 public class GameManager : NetworkBehaviour
 {
     public static GameManager Instance;
+    private ChessBoard chessBoard;
     public TileHighlighter tileHighlighter;
+
+    private Dictionary<ulong, int> clientTeams = new Dictionary<ulong, int>();
 
     public NetworkVariable<bool> isWhiteTeamTurn = new NetworkVariable<bool>(true);
     public int CurrentTurnTeam => isWhiteTeamTurn.Value ? 0 : 1;
@@ -13,6 +18,13 @@ public class GameManager : NetworkBehaviour
     private void Awake()
     {
         Instance = this;
+    }
+
+    private void Start()
+    {
+        PlayerInput playerInput = FindAnyObjectByType<PlayerInput>();
+        int myTeam = NetworkManager.Singleton.IsHost ? 0 : 1;
+        playerInput.Initialize(ChessBoard.Instance, tileHighlighter, myTeam);
     }
 
     public override void OnNetworkSpawn()
@@ -29,14 +41,8 @@ public class GameManager : NetworkBehaviour
         isWhiteTeamTurn.OnValueChanged -= OnTurnChanged;
     }
 
-    private void Start()
-    {
-        PlayerInput playerInput = FindAnyObjectByType<PlayerInput>();
-        playerInput.Initialize(ChessBoard.Instance, tileHighlighter);
-    }
 
     #region Turn Control
-
     public void SwitchTurn()
     {
         if (IsServer)
@@ -93,9 +99,48 @@ public class GameManager : NetworkBehaviour
 
     public void CheckMate(int winnerTeam)
     {
-        UIManager.Instance.ShowVictory(winnerTeam);
+        ShowVictoryClientRpc(winnerTeam);
     }
 
+    #endregion
+
+    #region UINetControl
+    [Rpc(SendTo.ClientsAndHost)]
+    public void ShowMessageClientRpc(string msg, float time = 0)
+    {
+        StartCoroutine(WaitForUIAndShow(msg, time));
+    }
+
+    private IEnumerator WaitForUIAndShow(string msg, float time)
+    {
+        float timer = 0f;
+        while (UIManager.Instance == null && timer < 5f) // µ¥ UIManager ³Ì¦h 5 ¬í
+        {
+            timer += Time.deltaTime;
+            yield return null;
+        }
+
+        if (UIManager.Instance != null)
+            UIManager.Instance.ShowMessage(msg, time);
+    }
+
+    [Rpc(SendTo.ClientsAndHost)]
+    public void ShowTurnClientRpc(int team)
+    {
+        UIManager.Instance?.ShowCurrentTurn(team);
+    }
+
+    [Rpc(SendTo.ClientsAndHost)]
+    public void ShowVictoryClientRpc(int team)
+    {
+        UIManager.Instance.ShowVictory(team);
+    }
+
+    [Rpc(SendTo.ClientsAndHost)]
+    public void HideVictoryClientRpc()
+    {
+        UIManager.Instance.HideVictory();
+    }
     #endregion
 
     #region Pause Control

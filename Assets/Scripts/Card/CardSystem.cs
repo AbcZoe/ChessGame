@@ -34,8 +34,8 @@ public class CardSystem : NetworkBehaviour
 
     public IEnumerator DealStartingCardsCoroutine()
     {
-        player1Hand.ClearHand();
-        player2Hand.ClearHand();
+        // 先讓所有 Client 清空手牌
+        ClearHandsClientRpc();
 
         for (int i = 0; i < startCardCount; i++)
         {
@@ -51,7 +51,14 @@ public class CardSystem : NetworkBehaviour
         }
     }
 
-    [ClientRpc]
+    [Rpc(SendTo.ClientsAndHost)]
+    private void ClearHandsClientRpc()
+    {
+        player1Hand.ClearHand();
+        player2Hand.ClearHand();
+    }
+
+    [Rpc(SendTo.ClientsAndHost)]
     private void DealCardClientRpc(int playerTeam, int cardId)
     {
         CardData data = cardDatabase.GetCardById(cardId);

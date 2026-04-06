@@ -31,7 +31,7 @@ public class CardHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         if (!currentCamera || cardView == null) return;
 
         // 遊戲暫停或選王階段，卡牌不可操作
-        if (GameManager.Instance.IsPaused || ChessBoard.Instance.kingSelectionState != KingSelectionState.Completed)
+        if (GameManager.Instance.IsPaused || ChessBoard.Instance.kingSelectionState.Value != KingSelectionState.Completed)
             return;
 
         Ray ray = currentCamera.ScreenPointToRay(Mouse.current.position.ReadValue());
@@ -93,14 +93,12 @@ public class CardHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     // ==== 卡牌描述顯示 ====
     public void OnPointerEnter(PointerEventData eventData)
     {
-        Debug.Log("Enter Card");
         if (cardView.OwnerTeam == GameManager.Instance.CurrentTurnTeam)
             UIManager.Instance.ShowCardDescription(cardView.CardName, cardView.Description);
     }
 
     public void OnPointerExit(PointerEventData eventData)
     {
-        Debug.Log("Exit Card");
         UIManager.Instance.HideCardDescription();
     }
 

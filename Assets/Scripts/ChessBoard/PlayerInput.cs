@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -10,10 +11,28 @@ public class PlayerInput : MonoBehaviour
     private Vector2Int currentHoverdTile = -Vector2Int.one;
     private ChessPiece currentlyDragging;
 
-    public void Initialize(ChessBoard board, TileHighlighter highlighter)
+    public int PlayerTeam { get; private set; } = -1; // -1 表示未設定
+
+    public void Initialize(ChessBoard board, TileHighlighter highlighter, int playerTeam)
     {
         chessBoard = board;
         tileHighlighter = highlighter;
+        PlayerTeam = playerTeam;
+
+
+        if (chessBoard == null)
+            Debug.LogError("PlayerInput 初始化錯誤: chessBoard 為 null!");
+
+        // 找到 CameraSetup 並翻轉相機
+        CameraSetup camSetup = Object.FindAnyObjectByType<CameraSetup>();
+        if (camSetup != null)
+        {
+            camSetup.SetupCamera(PlayerTeam);
+        }
+        else
+        {
+            Debug.LogError("CameraSetup 找不到 main camera!");
+        }
     }
 
     private void Update()
@@ -26,6 +45,10 @@ public class PlayerInput : MonoBehaviour
         if (!currentCamera) currentCamera = Camera.main;
         if (!currentCamera || Mouse.current == null) return;
 
+        // 確認 ChessBoard 和陣列都存在
+        if (ChessBoard.Instance == null || ChessBoard.Instance.chessPieces == null)
+            return;
+
         Vector2 mousePos = Mouse.current.position.ReadValue();
         Ray ray = currentCamera.ScreenPointToRay(mousePos);
 
@@ -37,7 +60,7 @@ public class PlayerInput : MonoBehaviour
             HandleClick(hitPos);
 
             // 選王階段禁止拖動
-            if (ChessBoard.Instance.kingSelectionState == KingSelectionState.Completed)
+            if (ChessBoard.Instance.kingSelectionState.Value == KingSelectionState.Completed)
             {
                 HandleDrag(ray);
                 HandleRelease(hitPos);
@@ -45,10 +68,10 @@ public class PlayerInput : MonoBehaviour
         }
         else
         {
-            if (ChessBoard.Instance.kingSelectionState == KingSelectionState.Completed)
+            if (ChessBoard.Instance.kingSelectionState.Value == KingSelectionState.Completed)
                 ResetHover();
 
-            if (ChessBoard.Instance.kingSelectionState == KingSelectionState.Completed)
+            if (ChessBoard.Instance.kingSelectionState.Value == KingSelectionState.Completed)
                 HandleReleaseOnEmpty();
         }
     }
@@ -84,19 +107,24 @@ public class PlayerInput : MonoBehaviour
     private void HandleClick(Vector2Int hitPos)
     {
         ChessPiece clickedPiece = chessBoard.chessPieces[hitPos.x, hitPos.y];
-        if (clickedPiece == null) return;
-
-        // 選王階段
-        if (ChessBoard.Instance.kingSelectionState != KingSelectionState.Completed)
+        //if (clickedPiece == null) return;
+        if (clickedPiece == null)
         {
-            if (Mouse.current.leftButton.wasPressedThisFrame)
+            Debug.Log("No chess piece at " + hitPos);
+            return;
+        }
+        // 選王階段
+        if (ChessBoard.Instance.kingSelectionState.Value != KingSelectionState.Completed)
+        {
+            // 只允許選自己隊伍的棋子
+            if (clickedPiece.Team.Value == PlayerTeam && Mouse.current.leftButton.wasPressedThisFrame)
                 KingManager.Instance.SelectKingPiece(clickedPiece);
 
             return; // 不進入拖動
         }
 
         // 一般遊戲階段，自己回合可選棋子
-        if (clickedPiece.Team.Value == GameManager.Instance.CurrentTurnTeam)
+        if (clickedPiece.Team.Value == PlayerTeam && GameManager.Instance.IsTeamTurn(PlayerTeam))
         {
             if (Mouse.current.leftButton.wasPressedThisFrame)
             {
@@ -122,8 +150,8 @@ public class PlayerInput : MonoBehaviour
         Vector2Int prevPos = new(currentlyDragging.X.Value, currentlyDragging.Y.Value);
         bool valid = chessBoard.MoveTo(currentlyDragging, hitPos.x, hitPos.y);
 
-        if (!valid)
-            currentlyDragging.SetPosition(chessBoard.GetTileCenter(prevPos.x, prevPos.y));
+        // 發 ServerRpc 請求移動
+        currentlyDragging.RequestMove(hitPos.x, hitPos.y);
 
         currentlyDragging = null;
         tileHighlighter.RemoveHighlight();

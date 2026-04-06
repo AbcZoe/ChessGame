@@ -99,23 +99,6 @@ public class UIManager : MonoBehaviour
             roundText.text = "";
     }
 
-    // ===== 卡片說明 =====
-    public void ShowCardDescription(string name, string description)
-    {
-        if (cardDescription != null)
-        {
-            string x = name +
-                "\ndescription:\n" + description;
-            cardDescription.text = x;
-        }
-    }
-
-    public void HideCardDescription()
-    {
-        if (cardDescription != null)
-            cardDescription.text = "";
-    }
-
     // ===== 勝利畫面 =====
     public void ShowVictory(int winnerTeam)
     {
@@ -148,6 +131,22 @@ public class UIManager : MonoBehaviour
         victoryPanel.SetActive(false);
     }
 
+    // ===== 卡片說明 =====
+    public void ShowCardDescription(string name, string description)
+    {
+        if (cardDescription != null)
+        {
+            string x = name +
+                "\ndescription:\n" + description;
+            cardDescription.text = x;
+        }
+    }
+
+    public void HideCardDescription()
+    {
+        if (cardDescription != null)
+            cardDescription.text = "";
+    }
     #region Button Events
     public void OnPauseButton()
     {
