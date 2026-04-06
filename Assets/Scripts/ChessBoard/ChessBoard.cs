@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using Unity.Netcode;
 using Unity.VisualScripting;
@@ -53,6 +54,12 @@ public class ChessBoard : NetworkBehaviour
         );
 
     #region Unity Methods
+    //應急方法，不然我無法做下去
+    private void Start()
+    {
+        ResetBoard();
+    }
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -88,13 +95,19 @@ public class ChessBoard : NetworkBehaviour
         }
 
         kingSelectionState.OnValueChanged += OnKingStateChanged;
-        OnKingStateChanged(KingSelectionState.None, kingSelectionState.Value);
+        StartCoroutine(DelayedHandleKingStateUI(kingSelectionState.Value));
 
     }
 
     private void OnKingStateChanged(KingSelectionState oldState, KingSelectionState newState)
     {
         HandleKingStateUI(newState);
+    }
+    private IEnumerator DelayedHandleKingStateUI(KingSelectionState state)
+    {
+        yield return null; // 等一幀
+        if (GameManager.Instance != null)
+            HandleKingStateUI(state);
     }
 
     private void HandleKingStateUI(KingSelectionState state)
@@ -227,12 +240,6 @@ public class ChessBoard : NetworkBehaviour
 
     private ChessPiece SpawnSinglePiece(string pieceName, int team, int x, int y)
     {
-        if (!pieceDataDict.ContainsKey(pieceName))
-        {
-            Debug.LogError($"找不到棋子資料：{pieceName}");
-            return null;
-        }
-
         ChessPieceData data = pieceDataDict[pieceName];
         ChessPiece cp = Instantiate(data.prefab, transform);
 
@@ -246,11 +253,9 @@ public class ChessBoard : NetworkBehaviour
             cp.X.Value = x;
             cp.Y.Value = y;
             cp.isKing.Value = false;
-        }
+        } 
 
         cp.SetPosition(GetTileCenter(x, y), true);
-
-        chessPieces[x, y] = cp;
 
         return cp;
     }
@@ -290,8 +295,8 @@ public class ChessBoard : NetworkBehaviour
             }
         }
 
-        // 回收死亡棋子
-        GraveyardManager.Instance.ResetGraveyard(); // 確保這裡只做 ReturnPiece，且不要 spawn/despawn
+        // 死亡棋子
+        GraveyardManager.Instance.ResetGraveyard(); 
 
         // 生成棋盤上的新棋子
         SpawnAllPiece();
@@ -323,11 +328,12 @@ public class ChessBoard : NetworkBehaviour
 
         if (!isMove && !isAttack) return false;
 
-        if (isAttack && targetPiece != null && targetPiece.Team != cp.Team)
+        if (isAttack && targetPiece != null && targetPiece.Team.Value != cp.Team.Value)
         {
             if (targetPiece.isKing.Value)
                 GameManager.Instance.CheckMate(cp.Team.Value);
 
+            chessPieces[x, y] = null; 
             GraveyardManager.Instance.AddDeadPiece(targetPiece);
         }
         else if (isMove && targetPiece != null)

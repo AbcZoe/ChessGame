@@ -4,6 +4,7 @@ using UnityEngine.InputSystem;
 
 public class PlayerInput : MonoBehaviour
 {
+    public static PlayerInput Instance { get; private set; }
     private Camera currentCamera;
     private ChessBoard chessBoard;
     private TileHighlighter tileHighlighter;
@@ -33,6 +34,16 @@ public class PlayerInput : MonoBehaviour
         {
             Debug.LogError("CameraSetup 找不到 main camera!");
         }
+    }
+    private void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
     }
 
     private void Update()
@@ -107,12 +118,8 @@ public class PlayerInput : MonoBehaviour
     private void HandleClick(Vector2Int hitPos)
     {
         ChessPiece clickedPiece = chessBoard.chessPieces[hitPos.x, hitPos.y];
-        //if (clickedPiece == null) return;
-        if (clickedPiece == null)
-        {
-            Debug.Log("No chess piece at " + hitPos);
-            return;
-        }
+        if (clickedPiece == null) return;
+       
         // 選王階段
         if (ChessBoard.Instance.kingSelectionState.Value != KingSelectionState.Completed)
         {
@@ -140,7 +147,9 @@ public class PlayerInput : MonoBehaviour
 
         Plane plane = new(Vector3.up, Vector3.up * chessBoard.yOffset);
         if (plane.Raycast(ray, out float distance))
-            currentlyDragging.SetPosition(ray.GetPoint(distance) + Vector3.up * chessBoard.dragOffset);
+            //currentlyDragging.SetPosition(ray.GetPoint(distance) + Vector3.up * chessBoard.dragOffset);
+            //只改本地 transform，不動 NetworkVariable
+            currentlyDragging.SetLocalPosition(ray.GetPoint(distance) + Vector3.up * chessBoard.dragOffset);
     }
 
     private void HandleRelease(Vector2Int hitPos)

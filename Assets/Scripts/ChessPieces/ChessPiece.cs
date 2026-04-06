@@ -7,8 +7,9 @@ using UnityEngine;
 public class ChessPiece : NetworkBehaviour
 {
     public NetworkVariable<int> Team = new();
-    public NetworkVariable<int> X = new();
-    public NetworkVariable<int> Y = new();
+    public NetworkVariable<int> X;
+    public NetworkVariable<int> Y;
+    private Vector2Int lastPos = new(-1, -1);
     public NetworkVariable<bool> isKing = new(false);
 
     private Vector3 desiredPosition;
@@ -81,12 +82,12 @@ public class ChessPiece : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
-        // 這裡保證每個 Client 都會把材質套好
-        var rend = GetComponent<MeshRenderer>();
+
         if (rend != null && ChessBoard.Instance != null)
         {
             rend.material = ChessBoard.Instance.teamMaterials[Team.Value];
         }
+
         // 訂閱 NetworkVariable 變化
         Team.OnValueChanged += (oldValue, newValue) => UpdateVisual();
         X.OnValueChanged += (oldValue, newValue) => UpdatePosition();
@@ -96,32 +97,30 @@ public class ChessPiece : NetworkBehaviour
         UpdatePosition();
         UpdateVisual();
 
-        // 登記到棋盤陣列
-        if (ChessBoard.Instance != null && ChessBoard.Instance.chessPieces != null)
-        {
-            ChessBoard.Instance.chessPieces[X.Value, Y.Value] = this;
-        }
+    }
+    public void SetLocalPosition(Vector3 position)
+    {
+        // 只改 transform，不改 NetworkVariable
+        transform.position = position;
     }
 
-    // 這個方法只在本地呼叫
     public void RequestMove(int targetX, int targetY)
     {
-        if (!IsOwner) return; // 只能自己發起移動請求
         RequestMoveServerRpc(targetX, targetY);
     }
 
-    // ServerRpc 寫法：所有人都可呼叫，Server 驗證
-    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-    private void RequestMoveServerRpc(int targetX, int targetY)
+    // ServerRpc 
+    [Rpc(SendTo.Server)]
+    private void RequestMoveServerRpc(int targetX, int targetY, RpcParams rpcParams = default)
     {
         if (!IsServer) return;
 
-        // 這裡直接用 Owner 判斷
-        if (OwnerClientId != NetworkManager.Singleton.LocalClientId)
-            return;
+        // 驗證這個 requester 是否有權移動此棋子（隊伍判斷）
+        int pieceTeam = Team.Value;
+        int playerTeam = PlayerInput.Instance.PlayerTeam; 
+        if (pieceTeam != playerTeam) return; // 非自己隊伍棋子不能移動
 
         bool validMove = ChessBoard.Instance.MoveTo(this, targetX, targetY);
-
         if (!validMove)
         {
             RevertPositionClientRpc(X.Value, Y.Value);
@@ -145,10 +144,19 @@ public class ChessPiece : NetworkBehaviour
 
     void UpdatePosition()
     {
-        if (ChessBoard.Instance == null) return;
+        var board = ChessBoard.Instance;
+        if (board == null) return;
 
-        Vector3 pos = ChessBoard.Instance.GetTileCenter(X.Value, Y.Value);
-        SetPosition(pos, true);
+        // 清掉舊位置
+        if (lastPos.x >= 0)
+            board.chessPieces[lastPos.x, lastPos.y] = null;
+
+        // 設新位置
+        board.chessPieces[X.Value, Y.Value] = this;
+
+        lastPos = new Vector2Int(X.Value, Y.Value);
+
+        SetPosition(board.GetTileCenter(X.Value, Y.Value), true);
     }
 
     private void UpdateKingVisual()

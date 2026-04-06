@@ -13,6 +13,7 @@ public class CardHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     public float yOffset = 0.2f;
 
     private CardView cardView;
+    private Coroutine hoverCoroutine;
 
     private void Awake()
     {
@@ -93,7 +94,7 @@ public class CardHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     // ==== •dµP¥y≠z≈„•‹ ====
     public void OnPointerEnter(PointerEventData eventData)
     {
-        if (cardView.OwnerTeam == GameManager.Instance.CurrentTurnTeam)
+        if (PlayerInput.Instance != null && cardView.OwnerTeam == PlayerInput.Instance.PlayerTeam)
             UIManager.Instance.ShowCardDescription(cardView.CardName, cardView.Description);
     }
 
