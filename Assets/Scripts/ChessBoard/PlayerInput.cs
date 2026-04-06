@@ -149,7 +149,7 @@ public class PlayerInput : MonoBehaviour
         if (plane.Raycast(ray, out float distance))
             //currentlyDragging.SetPosition(ray.GetPoint(distance) + Vector3.up * chessBoard.dragOffset);
             //只改本地 transform，不動 NetworkVariable
-            currentlyDragging.SetLocalPosition(ray.GetPoint(distance) + Vector3.up * chessBoard.dragOffset);
+            currentlyDragging.SetPosition(ray.GetPoint(distance) + Vector3.up * chessBoard.dragOffset);
     }
 
     private void HandleRelease(Vector2Int hitPos)

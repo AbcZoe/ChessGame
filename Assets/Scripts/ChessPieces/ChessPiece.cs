@@ -98,11 +98,6 @@ public class ChessPiece : NetworkBehaviour
         UpdateVisual();
 
     }
-    public void SetLocalPosition(Vector3 position)
-    {
-        // 只改 transform，不改 NetworkVariable
-        transform.position = position;
-    }
 
     public void RequestMove(int targetX, int targetY)
     {
