@@ -54,11 +54,6 @@ public class ChessBoard : NetworkBehaviour
         );
 
     #region Unity Methods
-    //應急方法，不然我無法做下去
-    private void Start()
-    {
-        ResetBoard();
-    }
 
     private void Awake()
     {
@@ -89,13 +84,25 @@ public class ChessBoard : NetworkBehaviour
         if (IsServer)
         {
             SpawnAllPiece();
-            PositionAllPiece();
-
             kingSelectionState.Value = KingSelectionState.WhiteTeamSelecting;
         }
 
         kingSelectionState.OnValueChanged += OnKingStateChanged;
         StartCoroutine(DelayedHandleKingStateUI(kingSelectionState.Value));
+
+        // 檢查棋子座標
+        if (NetworkManager.Singleton.IsHost) // 只在 Host 端檢查
+        {
+            for (int x = 0; x < TILE_COUNT; x++)
+            {
+                for (int y = 0; y < TILE_COUNT; y++)
+                {
+                    var cp = chessPieces[x, y];
+                    if (cp != null)
+                        Debug.Log($"{cp.name}: X={cp.X.Value}, Y={cp.Y.Value}");
+                }
+            }
+        }
 
     }
 
@@ -253,24 +260,13 @@ public class ChessBoard : NetworkBehaviour
             cp.X.Value = x;
             cp.Y.Value = y;
             cp.isKing.Value = false;
-        } 
+        }
+
+        Debug.Log($"Spawned {cp.name} for Team {cp.Team.Value} at ({cp.X.Value}, {cp.Y.Value})");
 
         cp.SetPosition(GetTileCenter(x, y), true);
 
         return cp;
-    }
-
-    public void PositionAllPiece()
-    {
-        for (int x = 0; x < TILE_COUNT; x++)
-            for (int y = 0; y < TILE_COUNT; y++)
-            {
-                ChessPiece piece = chessPieces[x, y];
-                if (piece != null)
-                {
-                    piece.SetPosition(GetTileCenter(x, y), true);
-                }
-            }
     }
 
     public Vector3 GetTileCenter(int x, int y) => new(x * tileSize + tileSize / 2, yOffset, y * tileSize + tileSize / 2);
@@ -300,7 +296,6 @@ public class ChessBoard : NetworkBehaviour
 
         // 生成棋盤上的新棋子
         SpawnAllPiece();
-        PositionAllPiece();
 
         // 重置 UI
         GameManager.Instance.isWhiteTeamTurn.Value = true;

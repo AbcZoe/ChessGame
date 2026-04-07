@@ -6,33 +6,29 @@ using UnityEngine;
 public class GameManager : NetworkBehaviour
 {
     public static GameManager Instance;
-    private ChessBoard chessBoard;
     public TileHighlighter tileHighlighter;
 
+    // ClientId -> Team
     private Dictionary<ulong, int> clientTeams = new Dictionary<ulong, int>();
 
     public NetworkVariable<bool> isWhiteTeamTurn = new NetworkVariable<bool>(true);
     public int CurrentTurnTeam => isWhiteTeamTurn.Value ? 0 : 1;
-    public bool IsPaused { get; private set; } = false;
+
+    public NetworkVariable<bool> IsPaused = new NetworkVariable<bool>(false);
 
     private void Awake()
     {
         Instance = this;
     }
 
-    private void Start()
-    {
-        PlayerInput playerInput = FindAnyObjectByType<PlayerInput>();
-        int myTeam = NetworkManager.Singleton.IsHost ? 0 : 1;
-        playerInput.Initialize(ChessBoard.Instance, tileHighlighter, myTeam);
-    }
-
     public override void OnNetworkSpawn()
     {
-        // 註冊同步事件（所有 Client 都會收到）
-        isWhiteTeamTurn.OnValueChanged += OnTurnChanged;
+        if (IsServer)
+        {
+            AssignTeams();
+        }
 
-        // 初始化 UI（確保同步後顯示正確）
+        isWhiteTeamTurn.OnValueChanged += OnTurnChanged;
         UpdateTurnUI();
     }
 
@@ -41,27 +37,76 @@ public class GameManager : NetworkBehaviour
         isWhiteTeamTurn.OnValueChanged -= OnTurnChanged;
     }
 
+    #region Team System
 
-    #region Turn Control
+    private void AssignTeams()
+    {
+        int team = 0;
+
+        foreach (var clientId in NetworkManager.Singleton.ConnectedClientsIds)
+        {
+            clientTeams[clientId] = team;
+
+            // 發送給該玩家自己的隊伍
+            AssignTeamClientRpc(clientId, team);
+
+            team = (team + 1) % 2; // 0 / 1 輪流
+        }
+    }
+
+    [ClientRpc]
+    private void AssignTeamClientRpc(ulong clientId, int team)
+    {
+        if (NetworkManager.Singleton.LocalClientId != clientId) return;
+
+        Debug.Log($"我是 Client {clientId}，我的隊伍是 {team}");
+
+        PlayerInput playerInput = FindAnyObjectByType<PlayerInput>();
+        playerInput.Initialize(ChessBoard.Instance, tileHighlighter, team);
+    }
+
+    public int GetClientTeam(ulong clientId)
+    {
+        if (clientTeams.TryGetValue(clientId, out int team))
+            return team;
+
+        return -1;
+    }
+
+    #endregion
+
+    #region Turn Control（安全版）
+
     public void SwitchTurn()
     {
         if (IsServer)
         {
-            // 直接切
             isWhiteTeamTurn.Value = !isWhiteTeamTurn.Value;
             Debug.Log($"Server 切換回合: {CurrentTurnTeam}");
         }
         else
         {
-            // Client 發 RPC
             SwitchTurnServerRpc();
         }
     }
 
-    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-    private void SwitchTurnServerRpc()
+    [Rpc(SendTo.Server)]
+    private void SwitchTurnServerRpc(RpcParams rpcParams = default)
     {
-        SwitchTurn(); // 這裡會進 IsServer 分支
+        ulong sender = rpcParams.Receive.SenderClientId;
+
+        if (!clientTeams.ContainsKey(sender)) return;
+
+        int team = clientTeams[sender];
+
+        // 只有當前回合玩家能切
+        if (team != CurrentTurnTeam)
+        {
+            Debug.Log($"Client {sender} 想切回合，但不是他的回合");
+            return;
+        }
+
+        SwitchTurn();
     }
 
     private void OnTurnChanged(bool oldValue, bool newValue)
@@ -71,7 +116,7 @@ public class GameManager : NetworkBehaviour
 
     private void UpdateTurnUI()
     {
-        UIManager.Instance.ShowCurrentTurn(CurrentTurnTeam);
+        UIManager.Instance?.ShowCurrentTurn(CurrentTurnTeam);
     }
 
     public bool IsTeamTurn(int team)
@@ -88,12 +133,10 @@ public class GameManager : NetworkBehaviour
         ResetGameServerRpc();
     }
 
-    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    [Rpc(SendTo.Server)]
     private void ResetGameServerRpc()
     {
         ChessBoard.Instance.ResetBoard();
-
-        //強制白隊先
         isWhiteTeamTurn.Value = true;
     }
 
@@ -104,8 +147,9 @@ public class GameManager : NetworkBehaviour
 
     #endregion
 
-    #region UINetControl
-    [Rpc(SendTo.ClientsAndHost)]
+    #region UI
+
+    [ClientRpc]
     public void ShowMessageClientRpc(string msg, float time = 0)
     {
         StartCoroutine(WaitForUIAndShow(msg, time));
@@ -114,71 +158,75 @@ public class GameManager : NetworkBehaviour
     private IEnumerator WaitForUIAndShow(string msg, float time)
     {
         float timer = 0f;
-        while (UIManager.Instance == null && timer < 5f) // 等 UIManager 最多 5 秒
+        while (UIManager.Instance == null && timer < 5f)
         {
             timer += Time.deltaTime;
             yield return null;
         }
 
-        if (UIManager.Instance != null)
-            UIManager.Instance.ShowMessage(msg, time);
+        UIManager.Instance?.ShowMessage(msg, time);
     }
 
-    [Rpc(SendTo.ClientsAndHost)]
-    public void ShowTurnClientRpc(int team)
+    [ClientRpc]
+    public void ShowTurnClientRpc(int team) 
     {
-        UIManager.Instance?.ShowCurrentTurn(team);
+        UIManager.Instance?.ShowCurrentTurn(team); 
     }
 
-    [Rpc(SendTo.ClientsAndHost)]
+    [ClientRpc]
     public void ShowVictoryClientRpc(int team)
     {
-        UIManager.Instance.ShowVictory(team);
+        UIManager.Instance?.ShowVictory(team);
     }
 
-    [Rpc(SendTo.ClientsAndHost)]
+    [ClientRpc]
     public void HideVictoryClientRpc()
     {
-        UIManager.Instance.HideVictory();
+        UIManager.Instance?.HideVictory();
     }
+
     #endregion
 
-    #region Pause Control
-    public void SetPaused(bool value)
-    {
-        IsPaused = value;
-    }
+    #region Pause
 
-    // 供 UIManager 呼叫
     public void PauseGame()
     {
-        SetPaused(true);
-        Time.timeScale = 0f; // 停止遊戲世界，但 DOTween UI動畫仍播放
+        SetPauseServerRpc(true);
     }
 
     public void ResumeGame()
     {
-        SetPaused(false);
-        Time.timeScale = 1f;
+        SetPauseServerRpc(false);
     }
+
+    [Rpc(SendTo.Server)]
+    private void SetPauseServerRpc(bool value)
+    {
+        IsPaused.Value = value;
+        SetPauseClientRpc(value);
+    }
+
+    [ClientRpc]
+    private void SetPauseClientRpc(bool value)
+    {
+        Time.timeScale = value ? 0f : 1f;
+    }
+
     #endregion
 
-    #region Card Control
-    public void ResetKingForTeam(int team)
-    {
+    #region Card Control 
+    public void ResetKingForTeam(int team) 
+    { 
         // 先切換 KingManager 狀態
-        KingManager.Instance?.ResetKingSelectionForCurrentTeam();
+        KingManager.Instance?.ResetKingSelectionForCurrentTeam(); 
+    } 
 
-    }
-    public void UseCard(CardView card)
-    {
+    public void UseCard(CardView card) 
+    { 
         // 使用卡牌效果
-        card.Use();
-
+        card.Use(); 
         // 如果不是 ResetKingCard 就切換回合
-        if (!(card.Data is ResetKingCard))
-            SwitchTurn();
-    }
+        if (!(card.Data is ResetKingCard)) SwitchTurn(); 
+    } 
     #endregion
-
 }

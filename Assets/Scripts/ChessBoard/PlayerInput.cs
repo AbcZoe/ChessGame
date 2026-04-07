@@ -1,5 +1,7 @@
 using System.Collections;
+using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 
 public class PlayerInput : MonoBehaviour
@@ -34,6 +36,7 @@ public class PlayerInput : MonoBehaviour
         {
             Debug.LogError("CameraSetup 找不到 main camera!");
         }
+
     }
     private void Awake()
     {
@@ -119,7 +122,8 @@ public class PlayerInput : MonoBehaviour
     {
         ChessPiece clickedPiece = chessBoard.chessPieces[hitPos.x, hitPos.y];
         if (clickedPiece == null) return;
-       
+        Debug.Log($"Hit Tile: {hitPos} → ChessPiece: {clickedPiece}");
+
         // 選王階段
         if (ChessBoard.Instance.kingSelectionState.Value != KingSelectionState.Completed)
         {
@@ -136,6 +140,7 @@ public class PlayerInput : MonoBehaviour
             if (Mouse.current.leftButton.wasPressedThisFrame)
             {
                 currentlyDragging = clickedPiece;
+                currentlyDragging.IsDragging = true; // 通知棋子正在被拖曳，暫停 NetworkVariable 的位置更新
                 tileHighlighter.HighlightTiles(currentlyDragging);
             }
         }
@@ -147,7 +152,6 @@ public class PlayerInput : MonoBehaviour
 
         Plane plane = new(Vector3.up, Vector3.up * chessBoard.yOffset);
         if (plane.Raycast(ray, out float distance))
-            //currentlyDragging.SetPosition(ray.GetPoint(distance) + Vector3.up * chessBoard.dragOffset);
             //只改本地 transform，不動 NetworkVariable
             currentlyDragging.SetPosition(ray.GetPoint(distance) + Vector3.up * chessBoard.dragOffset);
     }
@@ -156,9 +160,7 @@ public class PlayerInput : MonoBehaviour
     {
         if (currentlyDragging == null || !Mouse.current.leftButton.wasReleasedThisFrame) return;
 
-        Vector2Int prevPos = new(currentlyDragging.X.Value, currentlyDragging.Y.Value);
-        bool valid = chessBoard.MoveTo(currentlyDragging, hitPos.x, hitPos.y);
-
+        currentlyDragging.IsDragging = false;
         // 發 ServerRpc 請求移動
         currentlyDragging.RequestMove(hitPos.x, hitPos.y);
 
@@ -169,6 +171,7 @@ public class PlayerInput : MonoBehaviour
     private void HandleReleaseOnEmpty()
     {
         if (currentlyDragging == null || !Mouse.current.leftButton.wasReleasedThisFrame) return;
+        currentlyDragging.IsDragging = false;
 
         currentlyDragging.SetPosition(chessBoard.GetTileCenter(currentlyDragging.X.Value, currentlyDragging.Y.Value));
         currentlyDragging = null;

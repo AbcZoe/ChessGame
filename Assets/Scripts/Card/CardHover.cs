@@ -32,7 +32,7 @@ public class CardHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         if (!currentCamera || cardView == null) return;
 
         // 遊戲暫停或選王階段，卡牌不可操作
-        if (GameManager.Instance.IsPaused || ChessBoard.Instance.kingSelectionState.Value != KingSelectionState.Completed)
+        if (GameManager.Instance.IsPaused.Value || ChessBoard.Instance.kingSelectionState.Value != KingSelectionState.Completed)
             return;
 
         Ray ray = currentCamera.ScreenPointToRay(Mouse.current.position.ReadValue());

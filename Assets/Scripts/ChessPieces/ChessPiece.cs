@@ -15,6 +15,7 @@ public class ChessPiece : NetworkBehaviour
     private Vector3 desiredPosition;
     private Vector3 desiredScale = Vector3.one;
     public float baseScale = 100f; // Inspector 可調比例大小
+    public bool IsDragging = false;
 
     private MeshRenderer rend;
 
@@ -26,6 +27,7 @@ public class ChessPiece : NetworkBehaviour
 
     private void Update()
     {
+        if (IsDragging) return;
         transform.position = Vector3.Lerp(transform.position, desiredPosition, Time.deltaTime * 10);
         transform.localScale = Vector3.Lerp(transform.localScale, desiredScale, Time.deltaTime * 10);
     }
@@ -111,8 +113,12 @@ public class ChessPiece : NetworkBehaviour
         if (!IsServer) return;
 
         // 驗證這個 requester 是否有權移動此棋子（隊伍判斷）
-        int pieceTeam = Team.Value;
-        int playerTeam = PlayerInput.Instance.PlayerTeam; 
+        int pieceTeam = Team.Value; 
+        ulong sender = rpcParams.Receive.SenderClientId;
+        int playerTeam = GameManager.Instance.GetClientTeam(sender);
+
+        if (playerTeam == -1) return;
+        if (Team.Value != playerTeam) return;
         if (pieceTeam != playerTeam) return; // 非自己隊伍棋子不能移動
 
         bool validMove = ChessBoard.Instance.MoveTo(this, targetX, targetY);
@@ -126,7 +132,7 @@ public class ChessPiece : NetworkBehaviour
     [ClientRpc]
     private void RevertPositionClientRpc(int x, int y, ClientRpcParams clientRpcParams = default)
     {
-        SetPosition(ChessBoard.Instance.GetTileCenter(x, y), true);
+        SetPosition(ChessBoard.Instance.GetTileCenter(x, y));
     }
 
     public void UpdateVisual()
@@ -139,6 +145,9 @@ public class ChessPiece : NetworkBehaviour
 
     void UpdatePosition()
     {
+        // 拖曳時不要被 NetworkVariable 拉回去
+        if (IsDragging) return;
+
         var board = ChessBoard.Instance;
         if (board == null) return;
 
@@ -148,10 +157,9 @@ public class ChessPiece : NetworkBehaviour
 
         // 設新位置
         board.chessPieces[X.Value, Y.Value] = this;
-
         lastPos = new Vector2Int(X.Value, Y.Value);
 
-        SetPosition(board.GetTileCenter(X.Value, Y.Value), true);
+        SetPosition(board.GetTileCenter(X.Value, Y.Value));
     }
 
     private void UpdateKingVisual()
