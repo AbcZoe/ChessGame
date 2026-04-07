@@ -78,7 +78,6 @@ public class ChessBoard : NetworkBehaviour
             chessPieces = new ChessPiece[TILE_COUNT, TILE_COUNT];
     }
 
-
     public override void OnNetworkSpawn()
     {
         if (IsServer)
@@ -90,22 +89,10 @@ public class ChessBoard : NetworkBehaviour
         kingSelectionState.OnValueChanged += OnKingStateChanged;
         StartCoroutine(DelayedHandleKingStateUI(kingSelectionState.Value));
 
-        // 檢查棋子座標
-        if (NetworkManager.Singleton.IsHost) // 只在 Host 端檢查
-        {
-            for (int x = 0; x < TILE_COUNT; x++)
-            {
-                for (int y = 0; y < TILE_COUNT; y++)
-                {
-                    var cp = chessPieces[x, y];
-                    if (cp != null)
-                        Debug.Log($"{cp.name}: X={cp.X.Value}, Y={cp.Y.Value}");
-                }
-            }
-        }
-
     }
+    #endregion
 
+    #region Unity King Selection State
     private void OnKingStateChanged(KingSelectionState oldState, KingSelectionState newState)
     {
         HandleKingStateUI(newState);
@@ -208,65 +195,59 @@ public class ChessBoard : NetworkBehaviour
     private void SpawnAllPiece()
     {
         chessPieces = new ChessPiece[TILE_COUNT, TILE_COUNT];
-        int firstTeam = 0;
-        int secondTeam = 1;
+        int blackTeam = 0;
+        int whiteTeam = 1;
 
         // ===== Team 1 =====
-        chessPieces[1, 0] = SpawnSinglePiece("Rook", firstTeam, 1, 0);
-        chessPieces[2, 0] = SpawnSinglePiece("Bishop", firstTeam, 2, 0);
-        chessPieces[3, 0] = SpawnSinglePiece("King", firstTeam, 3, 0);
-        chessPieces[4, 0] = SpawnSinglePiece("Queen", firstTeam, 4, 0);
-        chessPieces[5, 0] = SpawnSinglePiece("Bishop", firstTeam, 5, 0);
-        chessPieces[6, 0] = SpawnSinglePiece("Rook", firstTeam, 6, 0);
+        SpawnSinglePiece("Rook", blackTeam, 1, 0);
+        SpawnSinglePiece("Bishop", blackTeam, 2, 0);
+        SpawnSinglePiece("King", blackTeam, 3, 0);
+        SpawnSinglePiece("Queen", blackTeam, 4, 0);
+        SpawnSinglePiece("Bishop", blackTeam, 5, 0);
+        SpawnSinglePiece("Rook", blackTeam, 6, 0);
 
         for (int x = 1; x < TILE_COUNT - 1; x++)
         {
             if (x == 2 || x == 5)
-                chessPieces[x, 1] = SpawnSinglePiece("Knight", firstTeam, x, 1);
+                SpawnSinglePiece("Knight", blackTeam, x, 1);
             else
-                chessPieces[x, 1] = SpawnSinglePiece("Pawn", firstTeam, x, 1);
+                SpawnSinglePiece("Pawn", blackTeam, x, 1);
         }
 
         // ===== Team 2 =====
-        chessPieces[1, 7] = SpawnSinglePiece("Rook", secondTeam, 1, 7);
-        chessPieces[2, 7] = SpawnSinglePiece("Bishop", secondTeam, 2, 7);
-        chessPieces[3, 7] = SpawnSinglePiece("King", secondTeam, 3, 7);
-        chessPieces[4, 7] = SpawnSinglePiece("Queen", secondTeam, 4, 7);
-        chessPieces[5, 7] = SpawnSinglePiece("Bishop", secondTeam, 5, 7);
-        chessPieces[6, 7] = SpawnSinglePiece("Rook", secondTeam, 6, 7);
+        SpawnSinglePiece("Rook", whiteTeam, 1, 7);
+        SpawnSinglePiece("Bishop", whiteTeam, 2, 7);
+        SpawnSinglePiece("King", whiteTeam, 3, 7);
+        SpawnSinglePiece("Queen", whiteTeam, 4, 7);
+        SpawnSinglePiece("Bishop", whiteTeam, 5, 7);
+        SpawnSinglePiece("Rook", whiteTeam, 6, 7);
 
         for (int x = 1; x < TILE_COUNT - 1; x++)
         {
             if (x == 2 || x == 5)
-                chessPieces[x, 6] = SpawnSinglePiece("Knight", secondTeam, x, 6);
+                SpawnSinglePiece("Knight", whiteTeam, x, 6);
             else
-                chessPieces[x, 6] = SpawnSinglePiece("Pawn", secondTeam, x, 6);
+                SpawnSinglePiece("Pawn", whiteTeam, x, 6);
         }
-
     }
 
-    private ChessPiece SpawnSinglePiece(string pieceName, int team, int x, int y)
+    private void SpawnSinglePiece(string pieceName, int team, int x, int y)
     {
-        ChessPieceData data = pieceDataDict[pieceName];
-        ChessPiece cp = Instantiate(data.prefab, transform);
+        ChessPiece obj = Instantiate(pieceDataDict[pieceName].prefab).GetComponent<ChessPiece>();
 
-        NetworkObject netObj = cp.GetComponent<NetworkObject>();
-        if (IsServer)
-            netObj.Spawn();
-        
+        var netObj = obj.GetComponent<NetworkObject>();
+        netObj.Spawn();
+
+        ChessPiece piece = obj.GetComponent<ChessPiece>();
         if (IsServer)
         {
-            cp.Team.Value = team;
-            cp.X.Value = x;
-            cp.Y.Value = y;
-            cp.isKing.Value = false;
+            piece.Team.Value = team;
+            piece.X.Value = x;
+            piece.Y.Value = y;
+            piece.isKing.Value = false;
+            chessPieces[x, y] = obj;
         }
 
-        Debug.Log($"Spawned {cp.name} for Team {cp.Team.Value} at ({cp.X.Value}, {cp.Y.Value})");
-
-        cp.SetPosition(GetTileCenter(x, y), true);
-
-        return cp;
     }
 
     public Vector3 GetTileCenter(int x, int y) => new(x * tileSize + tileSize / 2, yOffset, y * tileSize + tileSize / 2);
@@ -323,23 +304,25 @@ public class ChessBoard : NetworkBehaviour
 
         if (!isMove && !isAttack) return false;
 
-        if (isAttack && targetPiece != null && targetPiece.Team.Value != cp.Team.Value)
+        if (isAttack && targetPiece != null && targetPiece.Team != cp.Team)
         {
             if (targetPiece.isKing.Value)
                 GameManager.Instance.CheckMate(cp.Team.Value);
 
-            chessPieces[x, y] = null; 
             GraveyardManager.Instance.AddDeadPiece(targetPiece);
         }
         else if (isMove && targetPiece != null)
+        {
+            // 移動到己方棋子 → 不合法
+            chessPieces[previousPos.x, previousPos.y] = cp; // 回填舊位置
             return false;
+        }
 
         chessPieces[x, y] = cp;
         chessPieces[previousPos.x, previousPos.y] = null;
 
         cp.X.Value = x;
         cp.Y.Value = y;
-
         GameManager.Instance.SwitchTurn();
 
         return true;

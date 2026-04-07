@@ -3,6 +3,7 @@ using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using static UnityEngine.Audio.ProcessorInstance;
 
 public class PlayerInput : MonoBehaviour
 {
@@ -11,6 +12,7 @@ public class PlayerInput : MonoBehaviour
     private ChessBoard chessBoard;
     private TileHighlighter tileHighlighter;
 
+    private Vector2Int dragStartPos;
     private Vector2Int currentHoverdTile = -Vector2Int.one;
     private ChessPiece currentlyDragging;
 
@@ -130,7 +132,6 @@ public class PlayerInput : MonoBehaviour
             // 只允許選自己隊伍的棋子
             if (clickedPiece.Team.Value == PlayerTeam && Mouse.current.leftButton.wasPressedThisFrame)
                 KingManager.Instance.SelectKingPiece(clickedPiece);
-
             return; // 不進入拖動
         }
 
@@ -139,6 +140,7 @@ public class PlayerInput : MonoBehaviour
         {
             if (Mouse.current.leftButton.wasPressedThisFrame)
             {
+                dragStartPos = new Vector2Int(clickedPiece.X.Value, clickedPiece.Y.Value);
                 currentlyDragging = clickedPiece;
                 currentlyDragging.IsDragging = true; // 通知棋子正在被拖曳，暫停 NetworkVariable 的位置更新
                 tileHighlighter.HighlightTiles(currentlyDragging);
@@ -173,7 +175,7 @@ public class PlayerInput : MonoBehaviour
         if (currentlyDragging == null || !Mouse.current.leftButton.wasReleasedThisFrame) return;
         currentlyDragging.IsDragging = false;
 
-        currentlyDragging.SetPosition(chessBoard.GetTileCenter(currentlyDragging.X.Value, currentlyDragging.Y.Value));
+        currentlyDragging.SetPosition(chessBoard.GetTileCenter(dragStartPos.x, dragStartPos.y));
         currentlyDragging = null;
         tileHighlighter.RemoveHighlight();
     }
