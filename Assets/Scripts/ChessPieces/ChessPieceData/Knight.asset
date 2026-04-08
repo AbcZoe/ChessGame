@@ -13,4 +13,4 @@ MonoBehaviour:
   m_Name: Knight
   m_EditorClassIdentifier: Assembly-CSharp::ChessPieceData
   pieceName: Knight
-  prefab: {fileID: 802489639505384774, guid: 17818a0886d63de418a631bf688bf6af, type: 3}
+  prefab: {fileID: 1661350804500169, guid: 17818a0886d63de418a631bf688bf6af, type: 3}

@@ -1518,6 +1518,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5287196c1298c2d4396f8f5dd595c538, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerInput
+  pieceLayerMask:
+    serializedVersion: 2
+    m_Bits: 256
+  tileLayerMask:
+    serializedVersion: 2
+    m_Bits: 128
 --- !u!4 &408139557 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4135350641737124222, guid: df2e1ea2dff351842bf07cb7dc0c0856, type: 3}
@@ -2294,6 +2300,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CameraSetup
   mainCamera: {fileID: 330585545}
+  worldOffset: {x: 0, y: 0, z: 0.2}
 --- !u!1 &917722182
 GameObject:
   m_ObjectHideFlags: 0

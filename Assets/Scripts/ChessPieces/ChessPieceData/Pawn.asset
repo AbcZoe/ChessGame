@@ -13,4 +13,4 @@ MonoBehaviour:
   m_Name: Pawn
   m_EditorClassIdentifier: Assembly-CSharp::ChessPieceData
   pieceName: Pawn
-  prefab: {fileID: 1946585086261810240, guid: 400f7837df412a244abd5e1b1da26ac7, type: 3}
+  prefab: {fileID: -6162815815716567670, guid: 400f7837df412a244abd5e1b1da26ac7, type: 3}

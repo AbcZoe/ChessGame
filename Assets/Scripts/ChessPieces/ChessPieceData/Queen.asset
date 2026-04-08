@@ -13,4 +13,4 @@ MonoBehaviour:
   m_Name: Queen
   m_EditorClassIdentifier: Assembly-CSharp::ChessPieceData
   pieceName: Queen
-  prefab: {fileID: 473290849217026395, guid: 3b90cb47b985e5443b7f8fc554b0a28f, type: 3}
+  prefab: {fileID: 8721715276777834913, guid: 3b90cb47b985e5443b7f8fc554b0a28f, type: 3}

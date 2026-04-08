@@ -7,9 +7,11 @@ using UnityEngine;
 public class ChessPiece : NetworkBehaviour
 {
     public NetworkVariable<int> Team = new();
-    public NetworkVariable<int> X;
-    public NetworkVariable<int> Y;
+    public NetworkVariable<int> X = new();
+    public NetworkVariable<int> Y = new();
     public NetworkVariable<bool> isKing = new(false);
+    public NetworkVariable<bool> IsDead = new(false);
+    public NetworkVariable<int> DeadIndex = new(-1);
 
     private Vector3 desiredPosition;
     private Vector3 desiredScale = Vector3.one;
@@ -26,7 +28,7 @@ public class ChessPiece : NetworkBehaviour
 
     private void Update()
     {
-        if (IsDragging) return;
+        //if (IsDragging) return;
         transform.position = Vector3.Lerp(transform.position, desiredPosition, Time.deltaTime * 10);
         transform.localScale = Vector3.Lerp(transform.localScale, desiredScale, Time.deltaTime * 10);
     }
@@ -64,13 +66,12 @@ public class ChessPiece : NetworkBehaviour
 
     public void ResetPiece()
     {
-        if (IsServer)
-        {
-            Team.Value = 0;
-            X.Value = 0;
-            Y.Value = 0;
-            isKing.Value = false;
-        }
+        if (!IsServer) return;
+
+        Team.Value = 0;
+        X.Value = 0;
+        Y.Value = 0;
+        isKing.Value = false;
 
         desiredScale = Vector3.one * baseScale;
         transform.localScale = desiredScale;
@@ -84,6 +85,8 @@ public class ChessPiece : NetworkBehaviour
     public NetworkObject NetObj => GetComponent<NetworkObject>();
     public ulong NetId => NetObj != null ? NetObj.NetworkObjectId : 0;
 
+    private Coroutine applyDeadRoutine;
+
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
@@ -93,6 +96,10 @@ public class ChessPiece : NetworkBehaviour
         X.OnValueChanged += (oldValue, newValue) => UpdatePosition();
         Y.OnValueChanged += (oldValue, newValue) => UpdatePosition();
         isKing.OnValueChanged += (oldValue, newValue) => UpdateKingVisual();
+        IsDead.OnValueChanged += OnDeadChanged;
+        DeadIndex.OnValueChanged += OnDeadIndexChanged;
+
+        ApplyDeadState(); // 讓 late join 也能立即套用
         StartCoroutine(WaitForBoardReady());
 
         Debug.Log($"[NetSpawn] {name} NetId={NetworkObjectId} IsServer={IsServer}");
@@ -110,9 +117,6 @@ public class ChessPiece : NetworkBehaviour
 
         var board = ChessBoard.Instance;
 
-        board.chessPieces[X.Value, Y.Value] = this;
-        Debug.Log($"Register piece at {X.Value},{Y.Value}");
-
         UpdatePosition();
         UpdateVisual();
     }
@@ -129,6 +133,7 @@ public class ChessPiece : NetworkBehaviour
     {
         // 拖曳時不要被 NetworkVariable 拉回去
         if (IsDragging) return;
+        //if (IsDead.Value) return;
 
         var board = ChessBoard.Instance;
         if (board == null) return;
@@ -144,6 +149,40 @@ public class ChessPiece : NetworkBehaviour
             UpdateVisual();
     }
 
+    private void OnDeadChanged(bool oldV, bool newV) => ApplyDeadState();
+    private void OnDeadIndexChanged(int oldV, int newV) => ApplyDeadState();
+
+    private void ApplyDeadState()
+    {
+        if (!IsSpawned) return;
+
+        if (applyDeadRoutine != null)
+            StopCoroutine(applyDeadRoutine);
+
+        applyDeadRoutine = StartCoroutine(ApplyDeadStateWhenReady());
+    }
+
+    private IEnumerator ApplyDeadStateWhenReady()
+    {
+        // 等 GraveyardManager ready（避免 client 端 Instance 為 null）
+        while (IsDead.Value && GraveyardManager.Instance == null)
+            yield return null;
+
+        // 死亡：放進死亡區
+        if (IsDead.Value)
+        {
+            GraveyardManager.Instance.AddDeadPiece(this, DeadIndex.Value);
+            yield break;
+        }
+
+        // 非死亡：回到棋盤格（處理 reset/復活）
+        var board = ChessBoard.Instance;
+        while (board == null)
+            yield return null;
+
+        SetScale(Vector3.one, true); // 可選：恢復大小（看你想不想）
+        SetPosition(board.GetTileCenter(X.Value, Y.Value));
+    }
     #region MoveRequest
     public void RequestMove(int targetX, int targetY)
     {

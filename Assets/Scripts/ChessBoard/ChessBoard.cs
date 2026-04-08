@@ -5,6 +5,7 @@ using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Rendering;
 using static ChessPiece;
+using static UnityEngine.Audio.ProcessorInstance;
 
 public enum KingSelectionState
 {
@@ -33,6 +34,9 @@ public class ChessBoard : NetworkBehaviour
     public float yOffset = 0.2f;
     public float dragOffset = 1f;
     public int TILE_COUNT = 8;
+    private int deadCountTeam0 = 0;
+    private int deadCountTeam1 = 0;
+    private int AllocateDeadIndex(int team) => team == 0 ? deadCountTeam0++ : deadCountTeam1++;
 
     [Header("Tile Prefab")]
     [SerializeField] private GameObject tilePrefab; // Quad + Collider + NetworkObject
@@ -236,18 +240,21 @@ public class ChessBoard : NetworkBehaviour
         ChessPiece obj = Instantiate(pieceDataDict[pieceName].prefab).GetComponent<ChessPiece>();
 
         var netObj = obj.GetComponent<NetworkObject>();
-        netObj.Spawn();
-
         ChessPiece piece = obj.GetComponent<ChessPiece>();
+
+        // 先設初始狀態（Server）
         if (IsServer)
         {
             piece.Team.Value = team;
             piece.X.Value = x;
             piece.Y.Value = y;
             piece.isKing.Value = false;
+
             chessPieces[x, y] = obj;
         }
 
+        // 再 Spawn（讓 client 在 spawn 時就收到正確的初始值）
+        netObj.Spawn();
     }
 
     public Vector3 GetTileCenter(int x, int y) => new(x * tileSize + tileSize / 2, yOffset, y * tileSize + tileSize / 2);
@@ -271,9 +278,6 @@ public class ChessBoard : NetworkBehaviour
                 chessPieces[x, y] = null;
             }
         }
-
-        // 死亡棋子
-        GraveyardManager.Instance.ResetGraveyard(); 
 
         // 生成棋盤上的新棋子
         SpawnAllPiece();
@@ -304,17 +308,18 @@ public class ChessBoard : NetworkBehaviour
 
         if (!isMove && !isAttack) return false;
 
-        if (isAttack && targetPiece != null && targetPiece.Team != cp.Team)
+        if (isAttack && targetPiece != null && targetPiece.Team.Value != cp.Team.Value)
         {
             if (targetPiece.isKing.Value)
                 GameManager.Instance.CheckMate(cp.Team.Value);
 
-            GraveyardManager.Instance.AddDeadPiece(targetPiece);
+            int idx = AllocateDeadIndex(targetPiece.Team.Value);
+            targetPiece.DeadIndex.Value = idx;
+            targetPiece.IsDead.Value = true;
+
         }
         else if (isMove && targetPiece != null)
         {
-            // 移動到己方棋子 → 不合法
-            chessPieces[previousPos.x, previousPos.y] = cp; // 回填舊位置
             return false;
         }
 
@@ -327,5 +332,6 @@ public class ChessBoard : NetworkBehaviour
 
         return true;
     }
+
     #endregion
 }

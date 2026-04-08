@@ -12,6 +12,9 @@ public class PlayerInput : MonoBehaviour
     private ChessBoard chessBoard;
     private TileHighlighter tileHighlighter;
 
+    [SerializeField] private LayerMask pieceLayerMask;
+    [SerializeField] private LayerMask tileLayerMask;
+
     private Vector2Int dragStartPos;
     private Vector2Int currentHoverdTile = -Vector2Int.one;
     private ChessPiece currentlyDragging;
@@ -53,6 +56,7 @@ public class PlayerInput : MonoBehaviour
 
     private void Update()
     {
+        if (chessBoard == null) return;
         HandleMouseInteraction();
     }
 
@@ -68,30 +72,50 @@ public class PlayerInput : MonoBehaviour
         Vector2 mousePos = Mouse.current.position.ReadValue();
         Ray ray = currentCamera.ScreenPointToRay(mousePos);
 
-        if (Physics.Raycast(ray, out RaycastHit info, 100, LayerMask.GetMask("Tile")))
+        // 1) Hover用 Tile raycast
+        bool hitTile = Physics.Raycast(ray, out RaycastHit tileHit, 100, tileLayerMask);
+        Vector2Int hitPos = -Vector2Int.one;
+        if (hitTile)
+            hitPos = chessBoard.GetHitTileIndex(tileHit.transform.gameObject);
+
+        bool completed = ChessBoard.Instance.kingSelectionState.Value == KingSelectionState.Completed;
+
+        // A) Hover：只有在「沒在拖曳」時才做
+        if (currentlyDragging == null)
         {
-            Vector2Int hitPos = chessBoard.GetHitTileIndex(info.transform.gameObject);
-
-            HandleHover(hitPos);
-            HandleClick(hitPos);
-
-            // 選王階段禁止拖動
-            if (ChessBoard.Instance.kingSelectionState.Value == KingSelectionState.Completed)
-            {
-                HandleDrag(ray);
-                HandleRelease(hitPos);
-            }
+            if (hitTile) HandleHover(hitPos);
+            else ResetHover();
         }
-        else
-        {
-            if (ChessBoard.Instance.kingSelectionState.Value == KingSelectionState.Completed)
-                ResetHover();
 
-            if (ChessBoard.Instance.kingSelectionState.Value == KingSelectionState.Completed)
-                HandleReleaseOnEmpty();
+        // B) Drag：只要正在拖曳就永遠更新（不依賴 hitTile）
+        if (completed && currentlyDragging != null)
+            HandleDrag(ray);
+
+        // C) Release：在 releasedThisFrame 那一幀分流
+        if (completed && currentlyDragging != null && Mouse.current.leftButton.wasReleasedThisFrame)
+        {
+            if (hitTile) HandleRelease(hitPos);
+            else HandleReleaseOnEmpty();
+            return; // 避免同一幀又進入按下邏輯
+        }
+
+        // D) Press：你原本的按下開始拖曳邏輯（維持）
+        if (Mouse.current.leftButton.wasPressedThisFrame)
+        {
+            if (Physics.Raycast(ray, out RaycastHit pieceHit, 100, pieceLayerMask))
+            {
+                var clickedPiece = pieceHit.collider.GetComponent<ChessPiece>();
+                TryBeginDrag(clickedPiece);
+            }
+            else if (hitTile)
+            {
+                var pieceOnTile = FindPieceAtTile(hitPos);
+                TryBeginDrag(pieceOnTile);
+            }
         }
     }
 
+    #region Hover
     private void HandleHover(Vector2Int hitPos)
     {
         // 把之前 hover 過的格子恢復
@@ -120,63 +144,105 @@ public class PlayerInput : MonoBehaviour
         currentHoverdTile = -Vector2Int.one;
     }
 
-    private void HandleClick(Vector2Int hitPos)
+    #endregion
+
+
+    private ChessPiece FindPieceAtTile(Vector2Int tilePos)
     {
-        ChessPiece clickedPiece = chessBoard.chessPieces[hitPos.x, hitPos.y];
-        if (clickedPiece == null) return;
-        Debug.Log($"Hit Tile: {hitPos} → ChessPiece: {clickedPiece}");
+        if (tilePos == -Vector2Int.one) return null;
+
+        var pieces = FindObjectsByType<ChessPiece>(FindObjectsSortMode.None);
+        foreach (var p in pieces)
+        {
+            if (!p.IsSpawned) continue; // NGO safety
+            if (p.X.Value == tilePos.x && p.Y.Value == tilePos.y)
+                return p;
+        }
+        return null;
+    }
+
+    private void HandleClickPiece(ChessPiece clickedPiece)
+    {
+        Debug.Log($"Clicked Piece: {clickedPiece.name} Team={clickedPiece.Team.Value} Pos={clickedPiece.X.Value},{clickedPiece.Y.Value}");
 
         // 選王階段
         if (ChessBoard.Instance.kingSelectionState.Value != KingSelectionState.Completed)
         {
-            // 只允許選自己隊伍的棋子
-            if (clickedPiece.Team.Value == PlayerTeam && Mouse.current.leftButton.wasPressedThisFrame)
+            if (clickedPiece.Team.Value == PlayerTeam)
                 KingManager.Instance.SelectKingPiece(clickedPiece);
-            return; // 不進入拖動
+            return;
         }
 
-        // 一般遊戲階段，自己回合可選棋子
+        // 一般遊戲階段：自己回合 + 自己隊伍 → 才能拖曳
         if (clickedPiece.Team.Value == PlayerTeam && GameManager.Instance.IsTeamTurn(PlayerTeam))
         {
-            if (Mouse.current.leftButton.wasPressedThisFrame)
-            {
-                dragStartPos = new Vector2Int(clickedPiece.X.Value, clickedPiece.Y.Value);
-                currentlyDragging = clickedPiece;
-                currentlyDragging.IsDragging = true; // 通知棋子正在被拖曳，暫停 NetworkVariable 的位置更新
-                tileHighlighter.HighlightTiles(currentlyDragging);
-            }
+            dragStartPos = new Vector2Int(clickedPiece.X.Value, clickedPiece.Y.Value);
+            currentlyDragging = clickedPiece;
+            currentlyDragging.IsDragging = true; 
+            GameManager.Instance.RequestHighlightServerRpc(currentlyDragging.NetworkObjectId);
         }
+    }
+
+    private void TryBeginDrag(ChessPiece piece)
+    {
+        if (piece == null) return;
+        Debug.Log($"[Dragging] {piece.name} mouse dragging...");
+        // 選王階段
+        if (ChessBoard.Instance.kingSelectionState.Value != KingSelectionState.Completed)
+        {
+            if (piece.Team.Value == PlayerTeam)
+                KingManager.Instance.SelectKingPiece(piece);
+            return;
+        }
+
+        // 要自己回合 + 自己隊伍才可拖
+        if (piece.Team.Value != PlayerTeam) return;
+        if (!GameManager.Instance.IsTeamTurn(PlayerTeam)) return;
+
+        dragStartPos = new Vector2Int(piece.X.Value, piece.Y.Value);
+        currentlyDragging = piece;
+        currentlyDragging.IsDragging = true;
+        Debug.Log($"[DragStart] completed={ChessBoard.Instance.kingSelectionState.Value} start={dragStartPos} nowDragging={currentlyDragging.name} isDraggingFlag={currentlyDragging.IsDragging}");
+        GameManager.Instance.RequestHighlightServerRpc(currentlyDragging.NetworkObjectId);
     }
 
     private void HandleDrag(Ray ray)
     {
         if (currentlyDragging == null) return;
-
+        Debug.Log($"[DragTick] dragging={currentlyDragging.name}");
         Plane plane = new(Vector3.up, Vector3.up * chessBoard.yOffset);
         if (plane.Raycast(ray, out float distance))
             //只改本地 transform，不動 NetworkVariable
             currentlyDragging.SetPosition(ray.GetPoint(distance) + Vector3.up * chessBoard.dragOffset);
     }
-
+    #region Release
     private void HandleRelease(Vector2Int hitPos)
     {
         if (currentlyDragging == null || !Mouse.current.leftButton.wasReleasedThisFrame) return;
 
-        currentlyDragging.IsDragging = false;
-        // 發 ServerRpc 請求移動
-        currentlyDragging.RequestMove(hitPos.x, hitPos.y);
+        var piece = currentlyDragging;
+        piece.IsDragging = false; // 先清拖曳，讓之後 NV 更新能套用位置
 
-        currentlyDragging = null;
+        // 先本地回彈到起點（避免不合法時卡在半空）
+        piece.SetPosition(chessBoard.GetTileCenter(dragStartPos.x, dragStartPos.y));
+        // 再發送移動請求（合法就會被 server 拉到新位置）
+        piece.RequestMove(hitPos.x, hitPos.y);
+
         tileHighlighter.RemoveHighlight();
+        currentlyDragging = null;
     }
 
     private void HandleReleaseOnEmpty()
     {
         if (currentlyDragging == null || !Mouse.current.leftButton.wasReleasedThisFrame) return;
-        currentlyDragging.IsDragging = false;
 
-        currentlyDragging.SetPosition(chessBoard.GetTileCenter(dragStartPos.x, dragStartPos.y));
-        currentlyDragging = null;
+        var piece = currentlyDragging;
+        piece.IsDragging = false;
+
+        piece.SetPosition(chessBoard.GetTileCenter(dragStartPos.x, dragStartPos.y));
+
         tileHighlighter.RemoveHighlight();
+        currentlyDragging = null;
     }
+    #endregion
 }

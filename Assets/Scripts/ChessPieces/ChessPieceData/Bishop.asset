@@ -13,4 +13,4 @@ MonoBehaviour:
   m_Name: Bishop
   m_EditorClassIdentifier: Assembly-CSharp::ChessPieceData
   pieceName: Bishop
-  prefab: {fileID: 5949222955033480496, guid: 8a5da99937a70cf40b814d2f7d9d9ae5, type: 3}
+  prefab: {fileID: -7227141540216611529, guid: 8a5da99937a70cf40b814d2f7d9d9ae5, type: 3}

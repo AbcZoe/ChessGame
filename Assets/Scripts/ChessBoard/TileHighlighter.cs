@@ -25,6 +25,26 @@ public class TileHighlighter : MonoBehaviour
         }
     }
 
+    public void HighlightTilesFromServer(List<Vector2Int> moves, List<Vector2Int> attacks)
+    {
+        highlightedTilesDict.Clear();
+
+        if (moves != null)
+            foreach (var pos in moves) highlightedTilesDict[pos] = TileHighlightType.Move;
+
+        if (attacks != null)
+            foreach (var pos in attacks) highlightedTilesDict[pos] = TileHighlightType.Attack;
+
+        foreach (var kvp in highlightedTilesDict)
+        {
+            var renderer = ChessBoard.Instance.GetTileRenderer(kvp.Key.x, kvp.Key.y);
+            if (renderer != null)
+                renderer.material = kvp.Value == TileHighlightType.Move
+                    ? ChessBoard.Instance.moveEreaMaterial
+                    : ChessBoard.Instance.attackEreaMaterial;
+        }
+    }
+
     public void RemoveHighlight()
     {
         foreach (var kvp in highlightedTilesDict)

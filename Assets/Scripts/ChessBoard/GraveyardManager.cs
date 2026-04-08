@@ -11,7 +11,6 @@ public class GraveyardManager : MonoBehaviour
     [SerializeField] private float yOffset = 0.2f;         // 高度補正
     [SerializeField] private float tileSize = 1f;          // 棋盤格大小
 
-    private readonly Dictionary<int, List<ChessPiece>> deadPieces = new();
 
     private void Awake()
     {
@@ -22,47 +21,28 @@ public class GraveyardManager : MonoBehaviour
         }
         Instance = this;
 
-        deadPieces[0] = new List<ChessPiece>();
-        deadPieces[1] = new List<ChessPiece>();
     }
 
     /// 將死亡棋子加入死亡區
-    public void AddDeadPiece(ChessPiece piece)
+    public void AddDeadPiece(ChessPiece piece, int deadIndex)
     {
         if (piece == null) return;
 
         int team = piece.Team.Value;
-        deadPieces[team].Add(piece);
 
-        piece.SetScale(Vector3.one * deathSize, true);
+        // 縮放
+        piece.SetScale(Vector3.one * deathSize);
 
-        // 計算死亡棋子位置
         Vector3 deathBase = team == 0
             ? new Vector3(8 * tileSize, yOffset, -1 * tileSize) + Vector3.one * tileSize / 2
             : new Vector3(-1 * tileSize, yOffset, 8 * tileSize) + Vector3.one * tileSize / 2;
 
-        float zOffset = (team == 0 ? 1f : -1f) * deathSpacing * deadPieces[team].Count * 0.5f;
+        // 用 deadIndex 排隊（不依賴本機 list count）
+        float zOffset = (team == 0 ? 1f : -1f) * deathSpacing * (deadIndex + 0.5f);
         Vector3 deathOffset = new Vector3(0f, 0f, zOffset);
 
+        // 位置
         piece.SetPosition(deathBase + deathOffset);
-
     }
-    /// 重置死亡區（通常在重置棋盤時）
-    public void ResetGraveyard()
-    {
-        foreach (var kvp in deadPieces)
-        {
-            foreach (var piece in kvp.Value)
-            {
-                if (piece == null) continue;
 
-                NetworkObject netObj = piece.GetComponent<NetworkObject>();
-                if (netObj != null && netObj.IsSpawned)
-                    netObj.Despawn(true);
-            }
-
-            //清空死亡區列表
-            kvp.Value.Clear();
-        }
-    }
 }

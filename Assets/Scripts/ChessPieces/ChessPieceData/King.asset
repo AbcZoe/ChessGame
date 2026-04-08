@@ -13,4 +13,4 @@ MonoBehaviour:
   m_Name: King
   m_EditorClassIdentifier: Assembly-CSharp::ChessPieceData
   pieceName: King
-  prefab: {fileID: 4211373812644085991, guid: 93e94a64897d42b46a5f36d476383a39, type: 3}
+  prefab: {fileID: -2586720425733522300, guid: 93e94a64897d42b46a5f36d476383a39, type: 3}

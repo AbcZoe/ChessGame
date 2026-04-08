@@ -13,4 +13,4 @@ MonoBehaviour:
   m_Name: Rook
   m_EditorClassIdentifier: Assembly-CSharp::ChessPieceData
   pieceName: Rook
-  prefab: {fileID: 6507099306358124424, guid: cd75aa316d123b64ca3afb8644e02dc0, type: 3}
+  prefab: {fileID: -4204643391474100911, guid: cd75aa316d123b64ca3afb8644e02dc0, type: 3}
