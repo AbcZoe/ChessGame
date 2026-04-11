@@ -14,24 +14,8 @@ public class MultiplayerManager : MonoBehaviour
             Instance = this;
 
         DontDestroyOnLoad(gameObject);
-    }
-
-    public void StartHost()
-    {
-        if (!NetworkManager.Singleton.IsServer)
-        {
-            NetworkManager.Singleton.StartHost();
-        }
 
         NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
-    }
-
-    public void StartClient()
-    {
-        if (!NetworkManager.Singleton.IsClient)
-        {
-            NetworkManager.Singleton.StartClient();
-        }
     }
 
     private void OnClientConnected(ulong clientId)
@@ -41,10 +25,7 @@ public class MultiplayerManager : MonoBehaviour
 
         if (NetworkManager.Singleton.ConnectedClients.Count >= 2)
         {
-            NetworkManager.Singleton.SceneManager.LoadScene(
-                "GameScene",
-                UnityEngine.SceneManagement.LoadSceneMode.Single
-            );
+            NetworkManager.Singleton.SceneManager.LoadScene("GameScene", LoadSceneMode.Single);
         }
     }
 }

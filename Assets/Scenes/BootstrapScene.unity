@@ -235,6 +235,7 @@ GameObject:
   m_Component:
   - component: {fileID: 390346411}
   - component: {fileID: 390346412}
+  - component: {fileID: 390346413}
   m_Layer: 0
   m_Name: MultiplayerManager
   m_TagString: Untagged
@@ -269,6 +270,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e487c99d27fd41a418ba22b97c934d9b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MultiplayerManager
+--- !u!114 &390346413
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 390346410}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b6bb87b60cb58df4986d959ecb96b126, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LanAutoMatchmaker
+  discoveryPort: 47777
+  gamePort: 7777
+  clientWaitSeconds: 2.5
+  advertiseIntervalSeconds: 0.7
 --- !u!1 &498620855
 GameObject:
   m_ObjectHideFlags: 0

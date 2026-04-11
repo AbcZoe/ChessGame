@@ -188,9 +188,31 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    public void OnExitButton()
+    public void OnQuitButton()
     {
+    // 優先走網路通知（GameScene 會有 QuitNotifier）
+    if (QuitNotifier.Instance != null)
+    {
+        QuitNotifier.Instance.NotifyQuitAndLeave();
+        return;
+    }
+
+    // 保底（例如不在 GameScene）
+    LocalReturnToMenu();
+    }
+    public void LocalReturnToMenu()
+    {
+        LanAutoMatchmaker.Instance.CancelMatch();
+        Time.timeScale = 1f;
         SceneManager.LoadScene("StartScene");
+    }
+
+    public void ForceReturnToMenuAfterDelay(float seconds)
+    {
+        DOVirtual.DelayedCall(seconds, () =>
+        {
+            LocalReturnToMenu();
+        });
     }
     #endregion
 }

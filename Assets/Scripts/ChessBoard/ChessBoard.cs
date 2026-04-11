@@ -263,7 +263,7 @@ public class ChessBoard : NetworkBehaviour
     {
         if (!IsServer) return;
 
-        // 先回收棋盤上的棋子
+        // 先清理棋盤上的棋子
         for (int x = 0; x < TILE_COUNT; x++)
         {
             for (int y = 0; y < TILE_COUNT; y++)
@@ -278,6 +278,8 @@ public class ChessBoard : NetworkBehaviour
                 chessPieces[x, y] = null;
             }
         }
+        // 再清理死亡區
+        GraveyardManager.Instance?.ClearDeadPieces();
 
         // 生成棋盤上的新棋子
         SpawnAllPiece();

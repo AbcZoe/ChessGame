@@ -15,14 +15,13 @@ public class StartUIManager : MonoBehaviour
     [Header("Choose Mode UI")]
     [SerializeField] private GameObject ModePanel;
     [SerializeField] private GameObject ModePanelBackground;
-    [SerializeField] private GameObject HostButton;
-    [SerializeField] private GameObject JoinButton;
+    [SerializeField] private GameObject MatchButton;
     [SerializeField] private GameObject ExitButton;
+    private CanvasGroup modeCanvasGroup;
 
     [Header("Multiplayer UI")]
     [SerializeField] private GameObject ConnectingPanel;
-
-    private CanvasGroup modeCanvasGroup;
+    [SerializeField] private GameObject CancelMatchButton;
 
     private void Awake()
     {
@@ -48,7 +47,6 @@ public class StartUIManager : MonoBehaviour
         }
     }
 
-    // ≈„•‹ ModePanel
     private void ShowModePanel()
     {
         if (StartPanel != null) StartPanel.SetActive(false);
@@ -59,15 +57,14 @@ public class StartUIManager : MonoBehaviour
         UIEffect.Popup(ModePanel);
         UIEffect.FadeIn(modeCanvasGroup);
 
-        if (HostButton != null)
-            UIEffect.ButtonPopup(HostButton, 0.6f);
-        if (JoinButton != null)
-            UIEffect.ButtonPopup(JoinButton, 0.6f);
+        if (MatchButton != null)
+            UIEffect.ButtonPopup(MatchButton, 0.6f);
+        if (CancelMatchButton != null)
+            UIEffect.ButtonPopup(CancelMatchButton, 0.6f);
         if (ExitButton != null)
             UIEffect.ButtonPopup(ExitButton, 0.6f);
     }
 
-    // ¡Ù¬√ ModePanel
     private void HideModePanel()
     {
         if (ModePanel == null) return;
@@ -80,7 +77,7 @@ public class StartUIManager : MonoBehaviour
         if (StartPanel != null) StartPanel.SetActive(true);
     }
 
-    public void OnShowModePClicked()
+    public void OnShowModeClicked()
     {
         ShowModePanel();
     }
@@ -90,16 +87,16 @@ public class StartUIManager : MonoBehaviour
         HideModePanel();
     }
 
-    public void OnHostClicked()
+    public void OnMatchClicked()
     {
         ConnectingPanel.SetActive(true);
-        MultiplayerManager.Instance.StartHost();
+        LanAutoMatchmaker.Instance.StartMatch();
     }
 
-    public void OnJoinClicked()
+    public void OnCancelMatchClicked()
     {
-        ConnectingPanel.SetActive(true);
-        MultiplayerManager.Instance.StartClient();
+        ConnectingPanel.SetActive(false);
+        LanAutoMatchmaker.Instance.CancelMatch();
     }
 
     public void OnQuitClicked()
@@ -110,4 +107,5 @@ public class StartUIManager : MonoBehaviour
         Application.Quit();
 #endif
     }
+
 }

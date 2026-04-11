@@ -59,7 +59,7 @@ public class GameManager : NetworkBehaviour
         }
     }
 
-    [ClientRpc]
+    [Rpc(SendTo.ClientsAndHost)]
     private void AssignTeamClientRpc(ulong clientId, int team)
     {
         if (NetworkManager.Singleton.LocalClientId != clientId) return;
@@ -104,7 +104,7 @@ public class GameManager : NetworkBehaviour
     #endregion
 
     #region Highlight
-    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    [Rpc(SendTo.Server)]
     public void RequestHighlightServerRpc(ulong pieceNetId, RpcParams rpcParams = default)
     {
         if (!IsServer) return;
@@ -132,21 +132,20 @@ public class GameManager : NetworkBehaviour
         int[] movesPacked = PackPositions(moves);
         int[] attacksPacked = PackPositions(attacks);
 
-        // 只回給請求者
-        var clientRpcParams = new ClientRpcParams
+        var sendParams = new RpcParams
         {
-            Send = new ClientRpcSendParams
+            Send = new RpcSendParams
             {
-                TargetClientIds = new ulong[] { sender }
+                Target = RpcTarget.Single(sender, RpcTargetUse.Temp)
             }
         };
 
-        ReceiveHighlightClientRpc(movesPacked, attacksPacked);
+        ReceiveHighlightClientRpc(movesPacked, attacksPacked, sendParams);
         Debug.Log($"[Server] Highlight request from {sender} for piece {pieceNetId}");
     }
-
-    [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Everyone)]
-    private void ReceiveHighlightClientRpc(int[] movesPacked, int[] attacksPacked)
+    //傳送給特定client
+    [Rpc(SendTo.SpecifiedInParams)]
+    private void ReceiveHighlightClientRpc(int[] movesPacked, int[] attacksPacked, RpcParams rpcParams = default)
     {
         var moves = UnpackPositions(movesPacked);
         var attacks = UnpackPositions(attacksPacked);
@@ -233,7 +232,7 @@ public class GameManager : NetworkBehaviour
 
     #region UI
 
-    [ClientRpc]
+    [Rpc(SendTo.ClientsAndHost)]
     public void ShowMessageClientRpc(string msg, float time = 0)
     {
         StartCoroutine(WaitForUIAndShow(msg, time));
@@ -251,19 +250,19 @@ public class GameManager : NetworkBehaviour
         UIManager.Instance?.ShowMessage(msg, time);
     }
 
-    [ClientRpc]
+    [Rpc(SendTo.ClientsAndHost)]
     public void ShowTurnClientRpc(int team) 
     {
         UIManager.Instance?.ShowCurrentTurn(team); 
     }
 
-    [ClientRpc]
+    [Rpc(SendTo.ClientsAndHost)]
     public void ShowVictoryClientRpc(int team)
     {
         UIManager.Instance?.ShowVictory(team);
     }
 
-    [ClientRpc]
+    [Rpc(SendTo.ClientsAndHost)]
     public void HideVictoryClientRpc()
     {
         UIManager.Instance?.HideVictory();
@@ -290,7 +289,7 @@ public class GameManager : NetworkBehaviour
         SetPauseClientRpc(value);
     }
 
-    [ClientRpc]
+    [Rpc(SendTo.ClientsAndHost)]
     private void SetPauseClientRpc(bool value)
     {
         Time.timeScale = value ? 0f : 1f;

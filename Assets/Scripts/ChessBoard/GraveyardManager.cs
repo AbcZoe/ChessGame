@@ -11,6 +11,8 @@ public class GraveyardManager : MonoBehaviour
     [SerializeField] private float yOffset = 0.2f;         // 高度補正
     [SerializeField] private float tileSize = 1f;          // 棋盤格大小
 
+    // 記錄死亡棋子（Server authoritative 清理用）
+    private readonly HashSet<ulong> deadPieceNetIds = new();
 
     private void Awake()
     {
@@ -28,6 +30,10 @@ public class GraveyardManager : MonoBehaviour
     {
         if (piece == null) return;
 
+        // 記錄（避免重複）
+        if (piece.NetworkObject != null)
+            deadPieceNetIds.Add(piece.NetworkObjectId);
+
         int team = piece.Team.Value;
 
         // 縮放
@@ -43,6 +49,23 @@ public class GraveyardManager : MonoBehaviour
 
         // 位置
         piece.SetPosition(deathBase + deathOffset);
+    }
+
+    // 只在 Server 呼叫：清除目前所有死亡棋子
+    public void ClearDeadPieces()
+    {
+        if (!NetworkManager.Singleton || !NetworkManager.Singleton.IsServer) return;
+
+        foreach (var netId in deadPieceNetIds)
+        {
+            if (NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(netId, out var netObj))
+            {
+                if (netObj != null && netObj.IsSpawned)
+                    netObj.Despawn(true);
+            }
+        }
+
+        deadPieceNetIds.Clear();
     }
 
 }
