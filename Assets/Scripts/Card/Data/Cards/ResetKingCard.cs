@@ -10,9 +10,5 @@ public class ResetKingCard : CardData
         {
             GameManager.Instance.ResetKingForTeam(team);
         }
-        else
-        {
-            Debug.LogWarning("GameManager.Instance 為 null，無法重置 King");
-        }
     }
 }

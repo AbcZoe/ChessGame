@@ -122,7 +122,7 @@ public class ChessBoard : NetworkBehaviour
 
             case KingSelectionState.Completed:
                 GameManager.Instance?.ShowMessageClientRpc("Both teams have chosen their Kings. The game starts!", 2f);
-                GameManager.Instance?.ShowTurnClientRpc(0);
+                GameManager.Instance.EndAction();
                 break;
 
             case KingSelectionState.Reselecting:
@@ -241,6 +241,7 @@ public class ChessBoard : NetworkBehaviour
 
         var netObj = obj.GetComponent<NetworkObject>();
         ChessPiece piece = obj.GetComponent<ChessPiece>();
+        netObj.Spawn();
 
         // 先設初始狀態（Server）
         if (IsServer)
@@ -252,9 +253,7 @@ public class ChessBoard : NetworkBehaviour
 
             chessPieces[x, y] = obj;
         }
-
-        // 再 Spawn（讓 client 在 spawn 時就收到正確的初始值）
-        netObj.Spawn();
+ 
     }
 
     public Vector3 GetTileCenter(int x, int y) => new(x * tileSize + tileSize / 2, yOffset, y * tileSize + tileSize / 2);
@@ -301,6 +300,8 @@ public class ChessBoard : NetworkBehaviour
     {
         if (!IsServer) return false;
 
+        bool attackerAlsoDies = false;
+
         Vector2Int previousPos = new(cp.X.Value, cp.Y.Value);
         Vector2Int targetPos = new(x, y);
         ChessPiece targetPiece = chessPieces[x, y];
@@ -312,26 +313,62 @@ public class ChessBoard : NetworkBehaviour
 
         if (isAttack && targetPiece != null && targetPiece.Team.Value != cp.Team.Value)
         {
+            // 不滅：不能被吃
+            if (targetPiece.IndestructibleActive.Value)
+            {
+                GameManager.Instance?.ShowMessageClientRpc("This piece is in \"Indestructible\" state, cannot be captured.", 1.5f);
+                return false;
+            }
+
+            // 記下「被吃子」是否有同歸於盡
+            bool mutual = targetPiece.MutualDestructionActive.Value;
+
             if (targetPiece.isKing.Value)
                 GameManager.Instance.CheckMate(cp.Team.Value);
 
-            int idx = AllocateDeadIndex(targetPiece.Team.Value);
-            targetPiece.DeadIndex.Value = idx;
+            // 吃掉對方
+            int idxVictim = AllocateDeadIndex(targetPiece.Team.Value);
+            targetPiece.DeadIndex.Value = idxVictim;
             targetPiece.IsDead.Value = true;
 
+            // 同歸於盡：攻擊者也死（但不要把死棋移到 targetPos）
+            if (mutual)
+            {
+                attackerAlsoDies = true;
+                GameManager.Instance?.ShowMessageClientRpc("The piece is in \"Mutual Destruction\" state, and both pieces have been captured..", 1.5f);
+                int idxAttacker = AllocateDeadIndex(cp.Team.Value);
+                cp.DeadIndex.Value = idxAttacker;
+                cp.IsDead.Value = true;
+
+                // 可選：清掉被吃子的狀態（其實死了也無所謂）
+                // targetPiece.ClearMutualDestructionServer();
+            }
         }
         else if (isMove && targetPiece != null)
         {
+            // 目標格有棋子且不是攻擊格 -> 不允許走
             return false;
         }
 
-        chessPieces[x, y] = cp;
-        chessPieces[previousPos.x, previousPos.y] = null;
+        // 更新棋盤陣列與座標
+        if (attackerAlsoDies)
+        {
+            // 兩顆都死：原位清空、座標格也清空
+            chessPieces[targetPos.x, targetPos.y] = null;
+            chessPieces[previousPos.x, previousPos.y] = null;
 
-        cp.X.Value = x;
-        cp.Y.Value = y;
-        GameManager.Instance.SwitchTurn();
+            // cp 的 X/Y 不用更新（它已死，會被 GraveyardManager 接走）
+        }
+        else
+        {
+            chessPieces[targetPos.x, targetPos.y] = cp;
+            chessPieces[previousPos.x, previousPos.y] = null;
 
+            cp.X.Value = targetPos.x;
+            cp.Y.Value = targetPos.y;
+        }
+
+        GameManager.Instance.EndAction();
         return true;
     }
 

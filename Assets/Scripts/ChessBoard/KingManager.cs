@@ -73,7 +73,7 @@ public class KingManager : NetworkBehaviour
         else if (state == KingSelectionState.Reselecting)
         {
             board.RequestSetKingStateServerRpc(KingSelectionState.Completed);
-            GameManager.Instance.SwitchTurn();
+            GameManager.Instance.EndAction();
         }
     }
 

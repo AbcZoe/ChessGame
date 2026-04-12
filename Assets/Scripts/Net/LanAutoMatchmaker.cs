@@ -8,6 +8,8 @@ using Unity.Netcode.Transports.UTP;
 using Unity.Netcode;
 using UnityEngine;
 using System.IO;
+using System.Net.NetworkInformation;
+using System.Linq;
 
 public class LanAutoMatchmaker : MonoBehaviour
 {
@@ -18,9 +20,10 @@ public class LanAutoMatchmaker : MonoBehaviour
     [SerializeField] private ushort gamePort = 7777;
 
     [Header("Timings")]
-    [SerializeField] private float clientListenSeconds = 10f; // 同機測試給久一點
+    [SerializeField] private float clientListenSeconds = 5f; 
     [SerializeField] private float advertiseIntervalSeconds = 0.7f;
 
+    [SerializeField] private bool sameMachineTest = true;
     private CancellationTokenSource cts;
 
     // 同機雙開：用檔案鎖決定誰當 Host
@@ -56,15 +59,15 @@ public class LanAutoMatchmaker : MonoBehaviour
 
     private async Task StartMatchInternalAsync(CancellationToken token)
     {
-        // 1) 同機：先搶 Host 鎖，搶到者直接 Host（避免 port 衝突）
-        if (TryAcquireHostLock())
+        // 只在同機雙開測試才用檔案鎖決定 Host
+        if (sameMachineTest && TryAcquireHostLock())
         {
             StartHost(gamePort);
             _ = AdvertiseHostLoopAsync(token);
             return;
         }
 
-        // 2) 搶不到：當 Client，去聽廣播找 Host
+        // 跨機：先聽廣播找 Host
         var found = await TryFindHostAsync(clientListenSeconds, token);
         if (token.IsCancellationRequested) return;
 
@@ -74,7 +77,9 @@ public class LanAutoMatchmaker : MonoBehaviour
             return;
         }
 
-        Debug.LogWarning("[LAN] No host found (timeout). If testing on same PC, start the other build first.");
+        // 找不到就自己 Host（跨機時就靠先按的人當 Host）
+        StartHost(gamePort);
+        _ = AdvertiseHostLoopAsync(token);
     }
 
     private bool TryAcquireHostLock()
@@ -142,18 +147,74 @@ public class LanAutoMatchmaker : MonoBehaviour
         using var udp = new UdpClient();
         udp.EnableBroadcast = true;
 
-        string ip = "127.0.0.1"; // 同機測試，broadcast 內容用 loopback 最穩，不同機測試時，client 會從廣播訊息裡拿真實 IP 連回來 GetLocalIPv4()
-        string payload = $"CHESSHOST|{ip}|{gamePort}";
-        byte[] data = Encoding.UTF8.GetBytes(payload);
         var endpoint = new IPEndPoint(IPAddress.Broadcast, discoveryPort);
 
         while (!token.IsCancellationRequested && NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer)
         {
+            string ip = sameMachineTest ? "127.0.0.1" : GetLocalIPv4(); // "127.0.0.1"同機測試，GetLocalIPv4()不同機測試時，client 會從廣播訊息裡拿真實 IP 連回來
+            string payload = $"CHESSHOST|{ip}|{gamePort}";
+            byte[] data = Encoding.UTF8.GetBytes(payload);
             try { await udp.SendAsync(data, data.Length, endpoint); }
             catch { /* ignore */ }
 
             await Task.Delay(TimeSpan.FromSeconds(advertiseIntervalSeconds), token);
         }
+    }
+
+    private string GetLocalIPv4()
+    {
+        // 先挑出看起來最像「真實連線中」的網卡
+        var candidates = NetworkInterface.GetAllNetworkInterfaces()
+            .Where(ni =>
+                ni.OperationalStatus == OperationalStatus.Up &&
+                ni.NetworkInterfaceType != NetworkInterfaceType.Loopback &&
+                ni.NetworkInterfaceType != NetworkInterfaceType.Tunnel)
+            .OrderByDescending(ni =>
+            {
+                // 粗略排序：Ethernet/WiFi 優先於其他
+                return ni.NetworkInterfaceType switch
+                {
+                    NetworkInterfaceType.Ethernet => 3,
+                    NetworkInterfaceType.Wireless80211 => 2,
+                    _ => 1
+                };
+            });
+
+        foreach (var ni in candidates)
+        {
+            // 排除一些常見虛擬網卡（可按你環境調整/刪掉）
+            string name = (ni.Name ?? "").ToLowerInvariant();
+            string desc = (ni.Description ?? "").ToLowerInvariant();
+            if (name.Contains("virtual") || name.Contains("vmware") || name.Contains("hyper-v") ||
+                name.Contains("vpn") || name.Contains("loopback") ||
+                desc.Contains("virtual") || desc.Contains("vmware") || desc.Contains("hyper-v") ||
+                desc.Contains("vpn"))
+            {
+                continue;
+            }
+
+            var ipProps = ni.GetIPProperties();
+            foreach (var ua in ipProps.UnicastAddresses)
+            {
+                if (ua.Address.AddressFamily != AddressFamily.InterNetwork)
+                    continue;
+
+                string ip = ua.Address.ToString();
+
+                // 避免 127.x 與 0.0.0.0
+                if (ip.StartsWith("127.") || ip == "0.0.0.0")
+                    continue;
+
+                // 避免 APIPA（斷網時 Windows 會給 169.254.x.x）
+                if (ip.StartsWith("169.254."))
+                    continue;
+
+                return ip;
+            }
+        }
+
+        // 真的找不到就回 loopback（至少不會 null）
+        return "127.0.0.1";
     }
 
     private void StartHost(ushort port)

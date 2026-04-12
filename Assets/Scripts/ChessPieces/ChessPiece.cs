@@ -6,6 +6,8 @@ using UnityEngine;
 
 public class ChessPiece : NetworkBehaviour
 {
+
+    [Header("Piece Settings")]
     public NetworkVariable<int> Team = new();
     public NetworkVariable<int> X = new();
     public NetworkVariable<int> Y = new();
@@ -17,7 +19,14 @@ public class ChessPiece : NetworkBehaviour
     private Vector3 desiredScale = Vector3.one;
     public float baseScale = 100f; // Inspector 可調比例大小
     public bool IsDragging = false;
-    
+
+
+    [Header("Piecce Status")]
+    public NetworkVariable<bool> MutualDestructionActive = new(false); // 是否正在同歸於盡狀態
+    public NetworkVariable<int> MutualDestructionTurnsLeft = new(0); // 2 = 還能撐到下一次換手前，因為選完(用完卡後)之後會換回合，所以是2
+    public NetworkVariable<bool> IndestructibleActive = new(false); //是否正在無敵狀態
+    public NetworkVariable<int> IndestructibleTurnsLeft = new(0);
+
     private MeshRenderer rend;
 
     private void Awake()
@@ -101,8 +110,6 @@ public class ChessPiece : NetworkBehaviour
 
         ApplyDeadState(); // 讓 late join 也能立即套用
         StartCoroutine(WaitForBoardReady());
-
-        Debug.Log($"[NetSpawn] {name} NetId={NetworkObjectId} IsServer={IsServer}");
     }
 
     IEnumerator WaitForBoardReady()
@@ -208,6 +215,100 @@ public class ChessPiece : NetworkBehaviour
     }
 
     #endregion
+
+    #endregion
+
+    #region Cards
+
+    // 同歸於盡：持續幾次「換手」(turn switch)
+    public void ApplyMutualDestructionServer(int turns = 1)
+    {
+        if (!IsServer) return;
+
+        MutualDestructionActive.Value = true;
+        MutualDestructionTurnsLeft.Value = Mathf.Max(1, turns);
+    }
+
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    public void ApplyMutualDestructionServerRpc(int turns, RpcParams rpcParams = default)
+    {
+        if (!IsServer) return;
+
+        // 權限：只能對自己的隊伍施放
+        ulong sender = rpcParams.Receive.SenderClientId;
+        int playerTeam = GameManager.Instance.GetClientTeam(sender);
+        if (playerTeam == -1) return;
+        if (Team.Value != playerTeam) return;
+        if (IsDead.Value) return;
+
+        ApplyMutualDestructionServer(turns);
+    }
+
+    public void ClearMutualDestructionServer()
+    {
+        if (!IsServer) return;
+
+        MutualDestructionActive.Value = false;
+        MutualDestructionTurnsLeft.Value = 0;
+    }
+
+    // 無敵：持續幾次「換手」(turn switch)
+    public void ApplyIndestructibleServer(int turns = 1)
+    {
+        if (!IsServer) return;
+        IndestructibleActive.Value = true;
+        IndestructibleTurnsLeft.Value = Mathf.Max(1, turns);
+    }
+
+    public void ClearIndestructibleServer()
+    {
+        if (!IsServer) return;
+        IndestructibleActive.Value = false;
+        IndestructibleTurnsLeft.Value = 0;
+    }
+
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    public void ApplyIndestructibleServerRpc(int turns, RpcParams rpcParams = default)
+    {
+        if (!IsServer) return;
+
+        // 權限：只能對自己的棋子施放
+        ulong sender = rpcParams.Receive.SenderClientId;
+        int playerTeam = GameManager.Instance.GetClientTeam(sender);
+
+        if (playerTeam == -1) return;
+        if (Team.Value != playerTeam) return;
+        if (IsDead.Value) return;
+
+        ApplyIndestructibleServer(turns);
+    }
+
+    public void TickStatusOnTurnSwitchServer()
+    {
+        if (!IsServer) return;
+
+        // 同歸於盡倒數
+        if (MutualDestructionActive.Value)
+        {
+            MutualDestructionTurnsLeft.Value--;
+            if (MutualDestructionTurnsLeft.Value <= 0)
+            {
+                MutualDestructionActive.Value = false;
+                MutualDestructionTurnsLeft.Value = 0;
+            }
+        }
+
+        // 不滅倒數
+        if (IndestructibleActive.Value)
+        {
+            IndestructibleTurnsLeft.Value--;
+            if (IndestructibleTurnsLeft.Value <= 0)
+            {
+                IndestructibleActive.Value = false;
+                IndestructibleTurnsLeft.Value = 0;
+            }
+        }
+    }
 
     #endregion
 }

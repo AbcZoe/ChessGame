@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using Unity.Netcode;
 using UnityEngine;
@@ -32,7 +33,7 @@ public class PlayerInput : MonoBehaviour
             Debug.LogError("PlayerInput 初始化錯誤: chessBoard 為 null!");
 
         // 找到 CameraSetup 並翻轉相機
-        CameraSetup camSetup = Object.FindAnyObjectByType<CameraSetup>();
+        CameraSetup camSetup = UnityEngine.Object.FindAnyObjectByType<CameraSetup>();
         if (camSetup != null)
         {
             camSetup.SetupCamera(PlayerTeam);
@@ -57,6 +58,7 @@ public class PlayerInput : MonoBehaviour
     private void Update()
     {
         if (chessBoard == null) return;
+
         HandleMouseInteraction();
     }
 
@@ -102,16 +104,29 @@ public class PlayerInput : MonoBehaviour
         // D) Press：你原本的按下開始拖曳邏輯（維持）
         if (Mouse.current.leftButton.wasPressedThisFrame)
         {
+            ChessPiece clicked = null;
+
             if (Physics.Raycast(ray, out RaycastHit pieceHit, 100, pieceLayerMask))
-            {
-                var clickedPiece = pieceHit.collider.GetComponent<ChessPiece>();
-                TryBeginDrag(clickedPiece);
-            }
+                clicked = pieceHit.collider.GetComponent<ChessPiece>();
             else if (hitTile)
+                clicked = FindPieceAtTile(hitPos);
+            if (selectingCardTarget)
             {
-                var pieceOnTile = FindPieceAtTile(hitPos);
-                TryBeginDrag(pieceOnTile);
+                // 只能選自己隊伍、且要是活著的棋子（你用 IsDead）
+                if (clicked != null && clicked.Team.Value == PlayerTeam && !clicked.IsDead.Value)
+                {
+                    onCardTargetSelected?.Invoke(clicked);
+                    EndSelectFriendlyPiece();
+                }
+                else
+                {
+                    UIManager.Instance?.ShowMessage("Please select one of our surviving pieces.", 1.5f);
+                }
+                return;
             }
+
+            // 正常拖曳流程
+            TryBeginDrag(clicked);
         }
     }
 
@@ -146,7 +161,7 @@ public class PlayerInput : MonoBehaviour
 
     #endregion
 
-
+    #region Drag
     private ChessPiece FindPieceAtTile(Vector2Int tilePos)
     {
         if (tilePos == -Vector2Int.one) return null;
@@ -215,6 +230,8 @@ public class PlayerInput : MonoBehaviour
             //只改本地 transform，不動 NetworkVariable
             currentlyDragging.SetPosition(ray.GetPoint(distance) + Vector3.up * chessBoard.dragOffset);
     }
+    #endregion
+
     #region Release
     private void HandleRelease(Vector2Int hitPos)
     {
@@ -243,6 +260,30 @@ public class PlayerInput : MonoBehaviour
 
         tileHighlighter.RemoveHighlight();
         currentlyDragging = null;
+    }
+    #endregion
+
+    #region cards
+    private bool selectingCardTarget;
+    private Action<ChessPiece> onCardTargetSelected;
+
+    public void BeginSelectFriendlyPiece(Action<ChessPiece> onSelected)
+    {
+        selectingCardTarget = true;
+        onCardTargetSelected = onSelected;
+
+        // 防止正在拖曳時切模式造成怪狀態
+        if (currentlyDragging != null)
+        {
+            currentlyDragging.IsDragging = false;
+            currentlyDragging = null;
+            tileHighlighter?.RemoveHighlight();
+        }
+    }
+    private void EndSelectFriendlyPiece()
+    {
+        selectingCardTarget = false;
+        onCardTargetSelected = null;
     }
     #endregion
 }

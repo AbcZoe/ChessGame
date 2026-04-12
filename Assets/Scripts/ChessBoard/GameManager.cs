@@ -15,6 +15,7 @@ public class GameManager : NetworkBehaviour
     public NetworkVariable<bool> isWhiteTeamTurn = new NetworkVariable<bool>(true);
     public int CurrentTurnTeam => isWhiteTeamTurn.Value ? 0 : 1;
 
+    public NetworkVariable<int> ExtraActionsLeft = new(0);
 
     public NetworkVariable<bool> IsPaused = new NetworkVariable<bool>(false);
 
@@ -34,7 +35,6 @@ public class GameManager : NetworkBehaviour
             tileHighlighter = FindAnyObjectByType<TileHighlighter>();
 
         isWhiteTeamTurn.OnValueChanged += OnTurnChanged;
-        UpdateTurnUI();
     }
 
     public override void OnNetworkDespawn()
@@ -160,17 +160,36 @@ public class GameManager : NetworkBehaviour
 
     #region Turn Control
 
-    public void SwitchTurn()
+    public void EndAction()
     {
         if (IsServer)
         {
+            // 有額外行動：消耗一次，不換手
+            if (ExtraActionsLeft.Value > 0)
+            {
+                ExtraActionsLeft.Value--;
+                Debug.Log($"Extra action consumed, remaining={ExtraActionsLeft.Value}. Team keeps turn: {CurrentTurnTeam}");
+                return;
+            }
+
+            // 正常換手（這裡用你修好的 Tick->Switch 順序）
+            foreach (var piece in FindObjectsByType<ChessPiece>(FindObjectsSortMode.None))
+                piece.TickStatusOnTurnSwitchServer();
+
             isWhiteTeamTurn.Value = !isWhiteTeamTurn.Value;
             Debug.Log($"Server 切換回合: {CurrentTurnTeam}");
         }
         else
         {
-            SwitchTurnServerRpc();
+            EndActionServerRpc();
         }
+    }
+
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    private void EndActionServerRpc(RpcParams rpcParams = default)
+    {
+        if (!IsServer) return;
+        EndAction();
     }
 
     [Rpc(SendTo.Server)]
@@ -189,7 +208,7 @@ public class GameManager : NetworkBehaviour
             return;
         }
 
-        SwitchTurn();
+        EndAction();
     }
 
     private void OnTurnChanged(bool oldValue, bool newValue)
@@ -268,6 +287,16 @@ public class GameManager : NetworkBehaviour
         UIManager.Instance?.HideVictory();
     }
 
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    public void RequestRematchServerRpc(RpcParams rpcParams = default)
+    {
+        if (!IsServer) return;
+
+        ulong sender = rpcParams.Receive.SenderClientId;
+
+        // 只在 Host（Server 本地）顯示
+        UIManager.Instance?.ShowMessage("The opponent requested another round.", 2f);
+    }
     #endregion
 
     #region Pause
@@ -302,14 +331,25 @@ public class GameManager : NetworkBehaviour
     { 
         // 先切換 KingManager 狀態
         KingManager.Instance?.ResetKingSelectionForCurrentTeam(); 
-    } 
+    }
 
-    public void UseCard(CardView card) 
-    { 
-        // 使用卡牌效果
-        card.Use(); 
-        // 如果不是 ResetKingCard 就切換回合
-        if (!(card.Data is ResetKingCard)) SwitchTurn(); 
-    } 
+    public void GrantExtraActionServer(int count = 1)
+    {
+        if (!IsServer) return;
+        ExtraActionsLeft.Value += Mathf.Max(1, count);
+    }
+
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    public void GrantExtraActionServerRpc(int count, RpcParams rpcParams = default)
+    {
+        if (!IsServer) return;
+
+        // 權限：只能給自己隊伍（可選但建議）
+        int playerTeam = GetClientTeam(rpcParams.Receive.SenderClientId);
+        if (playerTeam == -1) return;
+        if (playerTeam != CurrentTurnTeam) return; // 只能自己回合用
+
+        GrantExtraActionServer(count);
+    }
     #endregion
 }

@@ -107,15 +107,8 @@ public class CardHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     {
         cardView.Use();
 
-        // 只有一般功能卡才切換回合
-        if (!(cardView.Data is ResetKingCard))
-        {
-            GameManager.Instance.SwitchTurn();
-        }
-
         // 卡牌消失
         CardViewCreator.Instance.RecycleCard(cardView);
 
     }
-
 }

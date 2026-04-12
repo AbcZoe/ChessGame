@@ -10,9 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 411c91d18b4565443b5e5b072270261c, type: 3}
-  m_Name: TestCard
+  m_Name: NothingCard
   m_EditorClassIdentifier: Assembly-CSharp::TestCard
-  cardName: TestCard
+  cardName: NothingHappend
   Id: 1
   description: Nothing happend ...
   image: {fileID: 0}

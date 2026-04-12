@@ -180,30 +180,41 @@ public class UIManager : MonoBehaviour
 
     public void OnResetButton()
     {
-        ChessBoard board = FindAnyObjectByType<ChessBoard>();
-        if (board != null)
+        // Host：真的重置
+        if (Unity.Netcode.NetworkManager.Singleton != null &&
+            Unity.Netcode.NetworkManager.Singleton.IsServer)
         {
-            Debug.Log("Resetting Game...");
-            board.ResetBoard();
+            ChessBoard board = FindAnyObjectByType<ChessBoard>();
+            if (board != null)
+            {
+                Debug.Log("Resetting Game...");
+                board.ResetBoard();
+            }
+            return;
         }
+
+        // Client：送訊息給 Host，不重置
+        GameManager.Instance?.RequestRematchServerRpc();
+        ShowMessage("Message has been sent to the other player.", 2f);
     }
 
     public void OnQuitButton()
     {
-    // 優先走網路通知（GameScene 會有 QuitNotifier）
-    if (QuitNotifier.Instance != null)
-    {
-        QuitNotifier.Instance.NotifyQuitAndLeave();
-        return;
-    }
+        Time.timeScale = 1f;
+        // 優先走網路通知（GameScene 會有 QuitNotifier）
+        if (QuitNotifier.Instance != null)
+        {
+            QuitNotifier.Instance.NotifyQuitAndLeave();
+            return;
+        }
 
-    // 保底（例如不在 GameScene）
-    LocalReturnToMenu();
+        // 保底（例如不在 GameScene）
+        LocalReturnToMenu();
     }
     public void LocalReturnToMenu()
     {
         LanAutoMatchmaker.Instance.CancelMatch();
-        Time.timeScale = 1f;
+        
         SceneManager.LoadScene("StartScene");
     }
 

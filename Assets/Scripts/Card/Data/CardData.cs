@@ -7,7 +7,7 @@ public abstract class CardData : ScriptableObject
     public string cardName;
     public int Id;
     [TextArea] public string description;
-    public Sprite image;
+    public Sprite image;    
 
     public abstract void Use(int team);
 }
