@@ -20,7 +20,7 @@ public class LanAutoMatchmaker : MonoBehaviour
     [SerializeField] private ushort gamePort = 7777;
 
     [Header("Timings")]
-    [SerializeField] private float clientListenSeconds = 5f; 
+    [SerializeField] private float clientListenSeconds = 5f;
     [SerializeField] private float advertiseIntervalSeconds = 0.7f;
 
     [SerializeField] private bool sameMachineTest = true;
@@ -130,13 +130,13 @@ public class LanAutoMatchmaker : MonoBehaviour
 
                 if (msg.StartsWith("CHESSHOST|"))
                 {
-                    // 用封包來源當作 Host IP（比 parts[1] 更準）
-                    string hostIp = result.RemoteEndPoint.Address.ToString();
-                    return (true, hostIp);
+                    var parts = msg.Split('|');
+                    if (parts.Length >= 3)
+                        return (true, parts[1]);
                 }
             }
 
-                await Task.Delay(30, token);
+            await Task.Delay(30, token);
         }
 
         return (false, null);
