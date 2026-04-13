@@ -1,7 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using Unity.Netcode;
-using Unity.Services.Matchmaker.Models;
 using UnityEngine;
 
 public class ChessPiece : NetworkBehaviour
@@ -190,31 +189,6 @@ public class ChessPiece : NetworkBehaviour
         SetScale(Vector3.one, true); // 可選：恢復大小（看你想不想）
         SetPosition(board.GetTileCenter(X.Value, Y.Value));
     }
-    #region MoveRequest
-    public void RequestMove(int targetX, int targetY)
-    {
-        RequestMoveServerRpc(targetX, targetY);
-    }
-
-    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-    private void RequestMoveServerRpc(int targetX, int targetY, RpcParams rpcParams = default)
-    {
-        if (!IsServer) return;
-
-        // 驗證這個 requester 是否有權移動此棋子（隊伍判斷）
-        int pieceTeam = Team.Value;
-        ulong sender = rpcParams.Receive.SenderClientId;
-        int playerTeam = GameManager.Instance.GetClientTeam(sender);
-
-        if (playerTeam == -1) return;
-        if (Team.Value != playerTeam) return;
-        if (pieceTeam != playerTeam) return; // 非自己隊伍棋子不能移動
-
-        bool validMove = ChessBoard.Instance.MoveTo(this, targetX, targetY);
-
-    }
-
-    #endregion
 
     #endregion
 

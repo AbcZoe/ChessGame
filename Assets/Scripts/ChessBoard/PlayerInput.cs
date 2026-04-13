@@ -1,8 +1,6 @@
 using System;
 using System.Collections;
-using Unity.Netcode;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using static UnityEngine.Audio.ProcessorInstance;
 
@@ -37,10 +35,6 @@ public class PlayerInput : MonoBehaviour
         if (camSetup != null)
         {
             camSetup.SetupCamera(PlayerTeam);
-        }
-        else
-        {
-            Debug.LogError("CameraSetup 找不到 main camera!");
         }
 
     }
@@ -126,7 +120,7 @@ public class PlayerInput : MonoBehaviour
             }
 
             // 正常拖曳流程
-            TryBeginDrag(clicked);
+            HandleClickPiece(clicked);
         }
     }
 
@@ -176,55 +170,30 @@ public class PlayerInput : MonoBehaviour
         return null;
     }
 
-    private void HandleClickPiece(ChessPiece clickedPiece)
-    {
-        Debug.Log($"Clicked Piece: {clickedPiece.name} Team={clickedPiece.Team.Value} Pos={clickedPiece.X.Value},{clickedPiece.Y.Value}");
-
-        // 選王階段
-        if (ChessBoard.Instance.kingSelectionState.Value != KingSelectionState.Completed)
-        {
-            if (clickedPiece.Team.Value == PlayerTeam)
-                KingManager.Instance.SelectKingPiece(clickedPiece);
-            return;
-        }
-
-        // 一般遊戲階段：自己回合 + 自己隊伍 → 才能拖曳
-        if (clickedPiece.Team.Value == PlayerTeam && GameManager.Instance.IsTeamTurn(PlayerTeam))
-        {
-            dragStartPos = new Vector2Int(clickedPiece.X.Value, clickedPiece.Y.Value);
-            currentlyDragging = clickedPiece;
-            currentlyDragging.IsDragging = true; 
-            GameManager.Instance.RequestHighlightServerRpc(currentlyDragging.NetworkObjectId);
-        }
-    }
-
-    private void TryBeginDrag(ChessPiece piece)
+    private void HandleClickPiece(ChessPiece piece)
     {
         if (piece == null) return;
-        Debug.Log($"[Dragging] {piece.name} mouse dragging...");
         // 選王階段
         if (ChessBoard.Instance.kingSelectionState.Value != KingSelectionState.Completed)
         {
             if (piece.Team.Value == PlayerTeam)
-                KingManager.Instance.SelectKingPiece(piece);
+                Services.NetGame?.RequestSelectKing(piece.NetworkObjectId);
             return;
         }
 
-        // 要自己回合 + 自己隊伍才可拖
+        // 要自己回合 + 自己隊伍才允許開始拖曳
         if (piece.Team.Value != PlayerTeam) return;
         if (!GameManager.Instance.IsTeamTurn(PlayerTeam)) return;
 
         dragStartPos = new Vector2Int(piece.X.Value, piece.Y.Value);
         currentlyDragging = piece;
         currentlyDragging.IsDragging = true;
-        Debug.Log($"[DragStart] completed={ChessBoard.Instance.kingSelectionState.Value} start={dragStartPos} nowDragging={currentlyDragging.name} isDraggingFlag={currentlyDragging.IsDragging}");
-        GameManager.Instance.RequestHighlightServerRpc(currentlyDragging.NetworkObjectId);
+        Services.NetGame?.RequestHighlight(currentlyDragging.NetworkObjectId);
     }
 
     private void HandleDrag(Ray ray)
     {
         if (currentlyDragging == null) return;
-        Debug.Log($"[DragTick] dragging={currentlyDragging.name}");
         Plane plane = new(Vector3.up, Vector3.up * chessBoard.yOffset);
         if (plane.Raycast(ray, out float distance))
             //只改本地 transform，不動 NetworkVariable
@@ -242,8 +211,12 @@ public class PlayerInput : MonoBehaviour
 
         // 先本地回彈到起點（避免不合法時卡在半空）
         piece.SetPosition(chessBoard.GetTileCenter(dragStartPos.x, dragStartPos.y));
+
+        // 用棋子的 NetworkObjectId 當 pieceNetId
+        ulong pieceNetId = piece.NetworkObjectId;
+
         // 再發送移動請求（合法就會被 server 拉到新位置）
-        piece.RequestMove(hitPos.x, hitPos.y);
+        Services.NetGame?.RequestMove(pieceNetId, hitPos.x, hitPos.y);
 
         tileHighlighter.RemoveHighlight();
         currentlyDragging = null;

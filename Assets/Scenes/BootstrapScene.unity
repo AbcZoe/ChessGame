@@ -284,8 +284,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LanAutoMatchmaker
   discoveryPort: 47777
   gamePort: 7777
-  clientWaitSeconds: 2.5
+  clientListenSeconds: 5
   advertiseIntervalSeconds: 0.7
+  sameMachineTest: 1
 --- !u!1 &498620855
 GameObject:
   m_ObjectHideFlags: 0

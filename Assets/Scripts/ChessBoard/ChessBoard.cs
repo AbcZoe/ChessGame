@@ -48,7 +48,7 @@ public class ChessBoard : NetworkBehaviour
     [Header("References")]
     public GameObject[,] tiles;
     public Renderer[,] tileRenderers;
-    public ChessPiece[,] chessPieces;
+    public ChessPiece[,] chessPieces; // Server-authoritative board map. Client side may be empty/out-of-date; do not use for gameplay decisions.
 
     public NetworkVariable<KingSelectionState> kingSelectionState =
         new NetworkVariable<KingSelectionState>(
@@ -122,7 +122,7 @@ public class ChessBoard : NetworkBehaviour
 
             case KingSelectionState.Completed:
                 GameManager.Instance?.ShowMessageClientRpc("Both teams have chosen their Kings. The game starts!", 2f);
-                GameManager.Instance.EndAction();
+                UIManager.Instance?.ShowCurrentTurn(GameManager.Instance.CurrentTurnTeam);
                 break;
 
             case KingSelectionState.Reselecting:
@@ -131,10 +131,9 @@ public class ChessBoard : NetworkBehaviour
         }
     }
 
-    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-    public void RequestSetKingStateServerRpc(KingSelectionState newState)
+    public void SetKingState_Server(KingSelectionState newState)
     {
-        if (!IsServer) return; // 只有 Server 可以改 NetworkVariable
+        if (!IsServer) return;
         kingSelectionState.Value = newState;
     }
     #endregion
@@ -316,7 +315,7 @@ public class ChessBoard : NetworkBehaviour
             // 不滅：不能被吃
             if (targetPiece.IndestructibleActive.Value)
             {
-                GameManager.Instance?.ShowMessageClientRpc("This piece is in \"Indestructible\" state, cannot be captured.", 1.5f);
+                GameManager.Instance?.ShowMessageClientRpc("This piece is in \"Indestructible\" state, cannot be captured.", 2f);
                 return false;
             }
 
@@ -335,7 +334,7 @@ public class ChessBoard : NetworkBehaviour
             if (mutual)
             {
                 attackerAlsoDies = true;
-                GameManager.Instance?.ShowMessageClientRpc("The piece is in \"Mutual Destruction\" state, and both pieces have been captured..", 1.5f);
+                GameManager.Instance?.ShowMessageClientRpc("The piece is in \"Mutual Destruction\" state, and both pieces have been captured..", 2f);
                 int idxAttacker = AllocateDeadIndex(cp.Team.Value);
                 cp.DeadIndex.Value = idxAttacker;
                 cp.IsDead.Value = true;

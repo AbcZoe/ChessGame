@@ -9,5 +9,5 @@ public abstract class CardData : ScriptableObject
     [TextArea] public string description;
     public Sprite image;    
 
-    public abstract void Use(int team);
+    public abstract void Use();
 }

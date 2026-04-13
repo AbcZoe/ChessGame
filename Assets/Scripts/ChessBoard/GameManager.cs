@@ -104,28 +104,20 @@ public class GameManager : NetworkBehaviour
     #endregion
 
     #region Highlight
-    [Rpc(SendTo.Server)]
-    public void RequestHighlightServerRpc(ulong pieceNetId, RpcParams rpcParams = default)
+    public void HandleHighlightRequest_Server(ulong senderClientId, ulong pieceNetId)
     {
         if (!IsServer) return;
 
-        ulong sender = rpcParams.Receive.SenderClientId;
-
-        // 權限：必須是已分配隊伍的玩家
-        int playerTeam = GetClientTeam(sender);
+        int playerTeam = GetClientTeam(senderClientId);
         if (playerTeam == -1) return;
 
-        // 找到那顆棋子
         if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(pieceNetId, out var netObj))
             return;
 
         var cp = netObj.GetComponent<ChessPiece>();
         if (cp == null) return;
-
-        // 權限：只能要求自己隊伍棋子的 highlight（你想允許看敵方也可以移除）
         if (cp.Team.Value != playerTeam) return;
 
-        // 用 server 權威棋盤算 moves/attacks
         var moves = cp.GetAvailableMoves(ref ChessBoard.Instance.chessPieces, ChessBoard.Instance.TILE_COUNT, ChessBoard.Instance.TILE_COUNT);
         var attacks = cp.GetAvailableAttacks(ref ChessBoard.Instance.chessPieces, ChessBoard.Instance.TILE_COUNT, ChessBoard.Instance.TILE_COUNT);
 
@@ -136,13 +128,13 @@ public class GameManager : NetworkBehaviour
         {
             Send = new RpcSendParams
             {
-                Target = RpcTarget.Single(sender, RpcTargetUse.Temp)
+                Target = RpcTarget.Single(senderClientId, RpcTargetUse.Temp)
             }
         };
 
         ReceiveHighlightClientRpc(movesPacked, attacksPacked, sendParams);
-        Debug.Log($"[Server] Highlight request from {sender} for piece {pieceNetId}");
     }
+
     //傳送給特定client
     [Rpc(SendTo.SpecifiedInParams)]
     private void ReceiveHighlightClientRpc(int[] movesPacked, int[] attacksPacked, RpcParams rpcParams = default)
@@ -189,24 +181,13 @@ public class GameManager : NetworkBehaviour
     private void EndActionServerRpc(RpcParams rpcParams = default)
     {
         if (!IsServer) return;
-        EndAction();
-    }
 
-    [Rpc(SendTo.Server)]
-    private void SwitchTurnServerRpc(RpcParams rpcParams = default)
-    {
         ulong sender = rpcParams.Receive.SenderClientId;
+        int team = GetClientTeam(sender);
+        if (team == -1) return;
 
-        if (!clientTeams.ContainsKey(sender)) return;
-
-        int team = clientTeams[sender];
-
-        // 只有當前回合玩家能切
-        if (team != CurrentTurnTeam)
-        {
-            Debug.Log($"Client {sender} 想切回合，但不是他的回合");
-            return;
-        }
+        // 只有自己回合才能結束行動 / 換手
+        if (team != CurrentTurnTeam) return;
 
         EndAction();
     }
@@ -216,7 +197,7 @@ public class GameManager : NetworkBehaviour
         UpdateTurnUI();
     }
 
-    private void UpdateTurnUI()
+    public void UpdateTurnUI()
     {
         UIManager.Instance?.ShowCurrentTurn(CurrentTurnTeam);
     }
@@ -235,9 +216,12 @@ public class GameManager : NetworkBehaviour
         ResetGameServerRpc();
     }
 
-    [Rpc(SendTo.Server)]
-    private void ResetGameServerRpc()
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    private void ResetGameServerRpc(RpcParams rpcParams = default)
     {
+        if (!IsServer) return;
+
+        if (rpcParams.Receive.SenderClientId != 0) return; // 只允許 Host
         ChessBoard.Instance.ResetBoard();
         isWhiteTeamTurn.Value = true;
     }
@@ -287,16 +271,6 @@ public class GameManager : NetworkBehaviour
         UIManager.Instance?.HideVictory();
     }
 
-    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-    public void RequestRematchServerRpc(RpcParams rpcParams = default)
-    {
-        if (!IsServer) return;
-
-        ulong sender = rpcParams.Receive.SenderClientId;
-
-        // 只在 Host（Server 本地）顯示
-        UIManager.Instance?.ShowMessage("The opponent requested another round.", 2f);
-    }
     #endregion
 
     #region Pause
@@ -311,9 +285,14 @@ public class GameManager : NetworkBehaviour
         SetPauseServerRpc(false);
     }
 
-    [Rpc(SendTo.Server)]
-    private void SetPauseServerRpc(bool value)
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    private void SetPauseServerRpc(bool value, RpcParams rpcParams = default)
     {
+        if (!IsServer) return;
+
+        ulong sender = rpcParams.Receive.SenderClientId;
+        if (sender != 0) return;
+
         IsPaused.Value = value;
         SetPauseClientRpc(value);
     }
@@ -327,29 +306,11 @@ public class GameManager : NetworkBehaviour
     #endregion
 
     #region Card Control 
-    public void ResetKingForTeam(int team) 
-    { 
-        // 先切換 KingManager 狀態
-        KingManager.Instance?.ResetKingSelectionForCurrentTeam(); 
-    }
-
     public void GrantExtraActionServer(int count = 1)
     {
         if (!IsServer) return;
         ExtraActionsLeft.Value += Mathf.Max(1, count);
     }
 
-    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-    public void GrantExtraActionServerRpc(int count, RpcParams rpcParams = default)
-    {
-        if (!IsServer) return;
-
-        // 權限：只能給自己隊伍（可選但建議）
-        int playerTeam = GetClientTeam(rpcParams.Receive.SenderClientId);
-        if (playerTeam == -1) return;
-        if (playerTeam != CurrentTurnTeam) return; // 只能自己回合用
-
-        GrantExtraActionServer(count);
-    }
     #endregion
 }

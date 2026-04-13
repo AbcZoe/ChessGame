@@ -30,6 +30,7 @@ public class CardHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     private void Update()
     {
         if (!currentCamera || cardView == null) return;
+        if (GameManager.Instance == null || ChessBoard.Instance == null) return;
 
         // 遊戲暫停或選王階段，卡牌不可操作
         if (GameManager.Instance.IsPaused.Value || ChessBoard.Instance.kingSelectionState.Value != KingSelectionState.Completed)

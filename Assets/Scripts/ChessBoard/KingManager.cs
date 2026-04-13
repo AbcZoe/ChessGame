@@ -11,36 +11,6 @@ public class KingManager : NetworkBehaviour
         Instance = this;
     }
 
-    public void SelectKingPiece(ChessPiece cp)
-    {
-        SelectKingServerRpc(cp.NetworkObjectId);
-    }
-
-    [Rpc(SendTo.Server)]
-    private void SelectKingServerRpc(ulong pieceId)
-    {
-        if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(pieceId, out var netObj))
-            return;
-
-        ChessPiece cp = netObj.GetComponent<ChessPiece>();
-        if (cp == null) return;
-
-        var board = ChessBoard.Instance;
-        var state = board.kingSelectionState.Value;
-
-        // 不合法直接拒絕
-        if (!IsValidSelection(cp, state))
-            return;
-
-        // 清除舊 King（同隊）
-        ClearTeamKing(cp.Team.Value);
-
-        // 設新 King
-        cp.isKing.Value = true;
-
-        // 推進流程
-        AdvanceState(board, state);
-    }
 
     private bool IsValidSelection(ChessPiece cp, KingSelectionState state)
     {
@@ -64,40 +34,52 @@ public class KingManager : NetworkBehaviour
     {
         if (state == KingSelectionState.WhiteTeamSelecting)
         {
-            board.RequestSetKingStateServerRpc(KingSelectionState.BlackTeamSelecting);
+            ChessBoard.Instance.SetKingState_Server(KingSelectionState.BlackTeamSelecting); 
         }
         else if (state == KingSelectionState.BlackTeamSelecting)
         {
-            board.RequestSetKingStateServerRpc(KingSelectionState.Completed);
+            ChessBoard.Instance.SetKingState_Server(KingSelectionState.Completed);
         }
         else if (state == KingSelectionState.Reselecting)
         {
-            board.RequestSetKingStateServerRpc(KingSelectionState.Completed);
+            ChessBoard.Instance.SetKingState_Server(KingSelectionState.Completed);
             GameManager.Instance.EndAction();
         }
     }
 
-    #region ResetKingSelection
-    public void ResetKingSelectionForCurrentTeam()
+    #region SelectKing
+    public void HandleSelectKingRequest_Server(ulong senderClientId, ulong pieceId)
     {
-        ResetKingSelectionServerRpc();
+        if (!IsServer) return;
+
+        if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(pieceId, out var netObj))
+            return;
+
+        ChessPiece cp = netObj.GetComponent<ChessPiece>();
+        if (cp == null) return;
+
+        var board = ChessBoard.Instance;
+        var state = board.kingSelectionState.Value;
+
+        // 不合法直接拒絕
+        if (!IsValidSelection(cp, state))
+            return;
+
+        cp.isKing.Value = true;
+
+        // 推進流程
+        AdvanceState(board, state);
+
     }
 
-    [Rpc(SendTo.Server)]
-    private void ResetKingSelectionServerRpc()
+    public void HandleResetKingSelection_Server(int team)
     {
-        int currentTeam = GameManager.Instance.CurrentTurnTeam;
+        int currentTeam = team;
 
-        ChessBoard.Instance.RequestSetKingStateServerRpc(KingSelectionState.Reselecting);
+        ChessBoard.Instance.SetKingState_Server(KingSelectionState.Reselecting);
 
-        foreach (var piece in ChessBoard.Instance.chessPieces)
-        {
-            if (piece != null && piece.Team.Value == currentTeam)
-            {
-                piece.isKing.Value = false; // 直接改 NetworkVariable
-            }
-        }
-
+        ClearTeamKing(currentTeam);
     }
+
     #endregion
 }

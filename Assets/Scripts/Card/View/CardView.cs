@@ -33,6 +33,6 @@ public class CardView : MonoBehaviour
     public void Use()
     {
         if (Data != null)
-            Data.Use(OwnerTeam);
+            Data.Use();
     }
 }
