@@ -5,6 +5,6 @@ public class NothingCard : CardData
 {
     public override void Use()
     {
-        Services.NetGame?.RequestUseCard(Id);
+        Services.NetInterface?.RequestUseCard(Id);
     }
 }

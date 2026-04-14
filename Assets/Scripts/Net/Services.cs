@@ -2,10 +2,11 @@ using UnityEngine;
 
 public static class Services
 {
-    public static NetInterface NetGame { get; private set; }
-    public static void SetNetGame(NetInterface impl)
+    public static NetInterface NetInterface { get; private set; }
+
+    public static void SetNetInterface(NetInterface impl)
     {
-        NetGame = impl;
+        NetInterface = impl;
     }
 
 }

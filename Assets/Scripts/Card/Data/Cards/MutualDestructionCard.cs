@@ -9,7 +9,7 @@ public class MutualDestructionCard : CardData
 
         PlayerInput.Instance.BeginSelectFriendlyPiece(piece =>
         {
-            Services.NetGame?.RequestUseCardOnPiece(Id, piece.NetworkObjectId);
+            Services.NetInterface?.RequestUseCardOnPiece(Id, piece.NetworkObjectId);
         });
     }
 }
