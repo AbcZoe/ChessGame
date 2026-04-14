@@ -5,6 +5,6 @@ public class ResetKingCard : CardData
 {
     public override void Use()
     {
-        Services.NetGame?.RequestUseCard(Id);
+        Services.NetInterface?.RequestUseCard(Id);
     }
 }

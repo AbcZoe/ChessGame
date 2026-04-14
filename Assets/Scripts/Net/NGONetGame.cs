@@ -6,7 +6,7 @@ public class NGONetGame : NetworkBehaviour, NetInterface
 {
     public override void OnNetworkSpawn()
     {
-        Services.SetNetGame(this);
+        Services.SetNetInterface(this);
     }
 
     public bool IsAuthoritative => IsServer;
@@ -40,7 +40,7 @@ public class NGONetGame : NetworkBehaviour, NetInterface
         int playerTeam = GameManager.Instance.GetClientTeam(sender);
         if (playerTeam == -1) return;
 
-        // Åv­­¡G¥u¯à¨«¦Û¤vªº´Ñ + ¥²¶·¦Û¤v¦^¦X¡]§A­ì¥»¤Ö¤F¡§¦^¦X¡¨ÀË¬d¡^
+        // ï¿½vï¿½ï¿½ï¿½Gï¿½uï¿½à¨«ï¿½Û¤vï¿½ï¿½ï¿½ï¿½ + ï¿½ï¿½ï¿½ï¿½ï¿½Û¤vï¿½^ï¿½Xï¿½]ï¿½Aï¿½ì¥»ï¿½Ö¤Fï¿½ï¿½ï¿½^ï¿½Xï¿½ï¿½ï¿½Ë¬dï¿½^
         if (piece.Team.Value != playerTeam) return;
         if (!GameManager.Instance.IsTeamTurn(playerTeam)) return;
 
@@ -76,7 +76,7 @@ public class NGONetGame : NetworkBehaviour, NetInterface
 
         ulong sender = rpcParams.Receive.SenderClientId;
 
-        // ¥u¦b Host¡]Server ¥»¦a¡^Åã¥Ü
+        // ï¿½uï¿½b Hostï¿½]Server ï¿½ï¿½ï¿½aï¿½^ï¿½ï¿½ï¿½
         UIManager.Instance?.ShowMessage("The opponent requested another round.", 2f);
     }
 
@@ -112,7 +112,7 @@ public class NGONetGame : NetworkBehaviour, NetInterface
         if (GameManager.Instance.IsPaused.Value) return;
         if (ChessBoard.Instance.kingSelectionState.Value != KingSelectionState.Completed) return;
 
-        // piece ¬O§_¦s¦b + ¬O§_¬O¦Û¤v¶¤¥î + ¦s¬¡
+        // piece ï¿½Oï¿½_ï¿½sï¿½b + ï¿½Oï¿½_ï¿½Oï¿½Û¤vï¿½ï¿½ï¿½ï¿½ + ï¿½sï¿½ï¿½
         if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(pieceNetId, out var netObj))
             return;
 

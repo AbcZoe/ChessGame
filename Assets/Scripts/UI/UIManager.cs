@@ -194,7 +194,7 @@ public class UIManager : MonoBehaviour
         }
 
         // Client：送訊息給 Host，不重置
-        Services.NetGame?.RequestRematch();
+        Services.NetInterface?.RequestRematch();
         ShowMessage("Message has been sent to the other player.", 2f);
     }
 

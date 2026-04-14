@@ -177,7 +177,7 @@ public class PlayerInput : MonoBehaviour
         if (ChessBoard.Instance.kingSelectionState.Value != KingSelectionState.Completed)
         {
             if (piece.Team.Value == PlayerTeam)
-                Services.NetGame?.RequestSelectKing(piece.NetworkObjectId);
+                Services.NetInterface?.RequestSelectKing(piece.NetworkObjectId);
             return;
         }
 
@@ -188,7 +188,7 @@ public class PlayerInput : MonoBehaviour
         dragStartPos = new Vector2Int(piece.X.Value, piece.Y.Value);
         currentlyDragging = piece;
         currentlyDragging.IsDragging = true;
-        Services.NetGame?.RequestHighlight(currentlyDragging.NetworkObjectId);
+        Services.NetInterface?.RequestHighlight(currentlyDragging.NetworkObjectId);
     }
 
     private void HandleDrag(Ray ray)
@@ -216,7 +216,7 @@ public class PlayerInput : MonoBehaviour
         ulong pieceNetId = piece.NetworkObjectId;
 
         // 再發送移動請求（合法就會被 server 拉到新位置）
-        Services.NetGame?.RequestMove(pieceNetId, hitPos.x, hitPos.y);
+        Services.NetInterface?.RequestMove(pieceNetId, hitPos.x, hitPos.y);
 
         tileHighlighter.RemoveHighlight();
         currentlyDragging = null;
