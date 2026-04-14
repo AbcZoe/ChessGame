@@ -67,31 +67,11 @@ public class ChessPiece : NetworkBehaviour
             transform.localScale = desiredScale;
     }
 
-    public void SetKing(bool value)
-    {
-        isKing.Value = value;
-    }
-
-    public void ResetPiece()
-    {
-        if (!IsServer) return;
-
-        Team.Value = 0;
-        X.Value = 0;
-        Y.Value = 0;
-        isKing.Value = false;
-
-        desiredScale = Vector3.one * baseScale;
-        transform.localScale = desiredScale;
-
-        NetworkObject.Despawn(true);
-    }
-
     #endregion
 
     #region Server Methods
     public NetworkObject NetObj => GetComponent<NetworkObject>();
-    public ulong NetId => NetObj != null ? NetObj.NetworkObjectId : 0;
+    //public ulong NetId => NetObj != null ? NetObj.NetworkObjectId : 0;
 
     private Coroutine applyDeadRoutine;
 
@@ -203,29 +183,6 @@ public class ChessPiece : NetworkBehaviour
         MutualDestructionTurnsLeft.Value = Mathf.Max(1, turns);
     }
 
-    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-    public void ApplyMutualDestructionServerRpc(int turns, RpcParams rpcParams = default)
-    {
-        if (!IsServer) return;
-
-        // 權限：只能對自己的隊伍施放
-        ulong sender = rpcParams.Receive.SenderClientId;
-        int playerTeam = GameManager.Instance.GetClientTeam(sender);
-        if (playerTeam == -1) return;
-        if (Team.Value != playerTeam) return;
-        if (IsDead.Value) return;
-
-        ApplyMutualDestructionServer(turns);
-    }
-
-    public void ClearMutualDestructionServer()
-    {
-        if (!IsServer) return;
-
-        MutualDestructionActive.Value = false;
-        MutualDestructionTurnsLeft.Value = 0;
-    }
-
     // 無敵：持續幾次「換手」(turn switch)
     public void ApplyIndestructibleServer(int turns = 1)
     {
@@ -234,28 +191,6 @@ public class ChessPiece : NetworkBehaviour
         IndestructibleTurnsLeft.Value = Mathf.Max(1, turns);
     }
 
-    public void ClearIndestructibleServer()
-    {
-        if (!IsServer) return;
-        IndestructibleActive.Value = false;
-        IndestructibleTurnsLeft.Value = 0;
-    }
-
-    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-    public void ApplyIndestructibleServerRpc(int turns, RpcParams rpcParams = default)
-    {
-        if (!IsServer) return;
-
-        // 權限：只能對自己的棋子施放
-        ulong sender = rpcParams.Receive.SenderClientId;
-        int playerTeam = GameManager.Instance.GetClientTeam(sender);
-
-        if (playerTeam == -1) return;
-        if (Team.Value != playerTeam) return;
-        if (IsDead.Value) return;
-
-        ApplyIndestructibleServer(turns);
-    }
 
     public void TickStatusOnTurnSwitchServer()
     {

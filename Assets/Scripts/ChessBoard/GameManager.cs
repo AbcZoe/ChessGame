@@ -211,21 +211,6 @@ public class GameManager : NetworkBehaviour
 
     #region Game Control
 
-    public void ResetGame()
-    {
-        ResetGameServerRpc();
-    }
-
-    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-    private void ResetGameServerRpc(RpcParams rpcParams = default)
-    {
-        if (!IsServer) return;
-
-        if (rpcParams.Receive.SenderClientId != 0) return; // ¥u¤¹³\ Host
-        ChessBoard.Instance.ResetBoard();
-        isWhiteTeamTurn.Value = true;
-    }
-
     public void CheckMate(int winnerTeam)
     {
         ShowVictoryClientRpc(winnerTeam);
@@ -251,12 +236,6 @@ public class GameManager : NetworkBehaviour
         }
 
         UIManager.Instance?.ShowMessage(msg, time);
-    }
-
-    [Rpc(SendTo.ClientsAndHost)]
-    public void ShowTurnClientRpc(int team) 
-    {
-        UIManager.Instance?.ShowCurrentTurn(team); 
     }
 
     [Rpc(SendTo.ClientsAndHost)]

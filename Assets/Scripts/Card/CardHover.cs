@@ -108,7 +108,7 @@ public class CardHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     {
         cardView.Use();
 
-        // 卡牌消失
+        // 卡牌回收
         CardViewCreator.Instance.RecycleCard(cardView);
 
     }
