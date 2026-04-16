@@ -50,6 +50,9 @@ public class ChessBoard : NetworkBehaviour
     public Renderer[,] tileRenderers;
     public ChessPiece[,] chessPieces; // Server-authoritative board map. Client side may be empty/out-of-date; do not use for gameplay decisions.
 
+    [Header("Audio Data")]
+    [SerializeField] private AudioData atePieceAudioData;
+
     public NetworkVariable<KingSelectionState> kingSelectionState =
         new NetworkVariable<KingSelectionState>(
             KingSelectionState.WhiteTeamSelecting,
@@ -329,6 +332,7 @@ public class ChessBoard : NetworkBehaviour
             int idxVictim = AllocateDeadIndex(targetPiece.Team.Value);
             targetPiece.DeadIndex.Value = idxVictim;
             targetPiece.IsDead.Value = true;
+            AudioManager.Instance.PlaySFX(atePieceAudioData);
 
             // 同歸於盡：攻擊者也死（但不要把死棋移到 targetPos）
             if (mutual)
@@ -338,7 +342,7 @@ public class ChessBoard : NetworkBehaviour
                 int idxAttacker = AllocateDeadIndex(cp.Team.Value);
                 cp.DeadIndex.Value = idxAttacker;
                 cp.IsDead.Value = true;
-
+                AudioManager.Instance.PlaySFX(atePieceAudioData);
                 // 可選：清掉被吃子的狀態（其實死了也無所謂）
                 // targetPiece.ClearMutualDestructionServer();
             }
@@ -356,7 +360,6 @@ public class ChessBoard : NetworkBehaviour
             chessPieces[targetPos.x, targetPos.y] = null;
             chessPieces[previousPos.x, previousPos.y] = null;
 
-            // cp 的 X/Y 不用更新（它已死，會被 GraveyardManager 接走）
         }
         else
         {

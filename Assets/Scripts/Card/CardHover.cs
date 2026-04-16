@@ -15,6 +15,9 @@ public class CardHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     private CardView cardView;
     private Coroutine hoverCoroutine;
 
+    [Header("Audio Data")]
+    [SerializeField] private AudioData clickCardAudioData;
+
     private void Awake()
     {
         currentCamera = Camera.main;
@@ -51,6 +54,7 @@ public class CardHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
             {
                 if (hit.transform == transform)
                 {
+                    AudioManager.Instance.PlaySFX(clickCardAudioData);
                     // 判斷是否是自己回合
                     if (GameManager.Instance.CurrentTurnTeam != cardView.OwnerTeam) return;
 

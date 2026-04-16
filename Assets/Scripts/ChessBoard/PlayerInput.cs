@@ -18,7 +18,11 @@ public class PlayerInput : MonoBehaviour
     private Vector2Int currentHoverdTile = -Vector2Int.one;
     private ChessPiece currentlyDragging;
 
+    [Header("Audio Data")]
+    [SerializeField] private AudioData realsePieceAudioData;
+
     public int PlayerTeam { get; private set; } = -1; // -1 表示未設定
+
 
     public void Initialize(ChessBoard board, TileHighlighter highlighter, int playerTeam)
     {
@@ -173,6 +177,8 @@ public class PlayerInput : MonoBehaviour
     private void HandleClickPiece(ChessPiece piece)
     {
         if (piece == null) return;
+        if (piece.IsDead.Value) return;
+
         // 選王階段
         if (ChessBoard.Instance.kingSelectionState.Value != KingSelectionState.Completed)
         {
@@ -205,6 +211,7 @@ public class PlayerInput : MonoBehaviour
     private void HandleRelease(Vector2Int hitPos)
     {
         if (currentlyDragging == null || !Mouse.current.leftButton.wasReleasedThisFrame) return;
+        AudioManager.Instance.PlaySFX(realsePieceAudioData);
 
         var piece = currentlyDragging;
         piece.IsDragging = false; // 先清拖曳，讓之後 NV 更新能套用位置
@@ -225,6 +232,7 @@ public class PlayerInput : MonoBehaviour
     private void HandleReleaseOnEmpty()
     {
         if (currentlyDragging == null || !Mouse.current.leftButton.wasReleasedThisFrame) return;
+        AudioManager.Instance.PlaySFX(realsePieceAudioData);
 
         var piece = currentlyDragging;
         piece.IsDragging = false;

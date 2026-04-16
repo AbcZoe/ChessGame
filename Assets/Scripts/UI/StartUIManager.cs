@@ -23,6 +23,10 @@ public class StartUIManager : MonoBehaviour
     [SerializeField] private GameObject ConnectingPanel;
     [SerializeField] private GameObject CancelMatchButton;
 
+    [Header("Audio Data")]
+    [SerializeField] private AudioData startUIAudioData;
+    [SerializeField] private AudioData clickUIAudioData;
+
     private void Awake()
     {
         // 確保時間恢復（非常重要）
@@ -49,6 +53,8 @@ public class StartUIManager : MonoBehaviour
 
     private void ShowModePanel()
     {
+        AudioManager.Instance.PlaySFX(startUIAudioData);
+
         if (StartPanel != null) StartPanel.SetActive(false);
         if (ModePanel == null) return;
 
@@ -79,28 +85,33 @@ public class StartUIManager : MonoBehaviour
 
     public void OnShowModeClicked()
     {
+        AudioManager.Instance.PlaySFX(clickUIAudioData);
         ShowModePanel();
     }
 
     public void OnCloseModeClicked()
     {
+        AudioManager.Instance.PlaySFX(clickUIAudioData);
         HideModePanel();
     }
 
     public void OnMatchClicked()
     {
+        AudioManager.Instance.PlaySFX(clickUIAudioData);
         ConnectingPanel.SetActive(true);
         LanAutoMatchmaker.Instance.StartMatch();
     }
 
     public void OnCancelMatchClicked()
     {
+        AudioManager.Instance.PlaySFX(clickUIAudioData);
         ConnectingPanel.SetActive(false);
         LanAutoMatchmaker.Instance.CancelMatch();
     }
 
     public void OnQuitClicked()
     {
+        AudioManager.Instance.PlaySFX(clickUIAudioData);
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
 #else

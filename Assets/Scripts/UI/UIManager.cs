@@ -29,6 +29,10 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameObject exitButton;
     private CanvasGroup victoryCanvasGroup;
 
+    [Header("Audio Data")]
+    [SerializeField] private AudioData clickUIAudioData;
+    [SerializeField] private AudioData messageUIAudioData;
+
     private void Awake()
     {
         if (Instance == null) Instance = this;
@@ -52,6 +56,7 @@ public class UIManager : MonoBehaviour
     // ===== 短暫訊息 =====
     public void ShowMessage(string text, float autoHideTime = 0f)
     {
+        AudioManager.Instance.PlaySFX(messageUIAudioData);
         if (messagePanel == null || messageText == null) return;
 
         messageText.text = text;
@@ -151,7 +156,8 @@ public class UIManager : MonoBehaviour
     public void OnPauseButton()
     {
         if (pausePanel == null || pauseCanvasGroup == null) return;
-        
+        AudioManager.Instance.PlaySFX(clickUIAudioData);
+
         // 顯示暫停面板
         pausePanel.SetActive(true);
         UIEffect.Popup(pausePanel);
@@ -167,6 +173,7 @@ public class UIManager : MonoBehaviour
     public void OnResumeButton()
     {
         if (pausePanel == null || pauseCanvasGroup == null) return;
+        AudioManager.Instance.PlaySFX(clickUIAudioData);
 
         // 停止面板動畫
         pauseCanvasGroup.alpha = 1f;
@@ -180,6 +187,7 @@ public class UIManager : MonoBehaviour
 
     public void OnResetButton()
     {
+        AudioManager.Instance.PlaySFX(clickUIAudioData);
         // Host：真的重置
         if (Unity.Netcode.NetworkManager.Singleton != null &&
             Unity.Netcode.NetworkManager.Singleton.IsServer)
@@ -200,6 +208,7 @@ public class UIManager : MonoBehaviour
 
     public void OnQuitButton()
     {
+        AudioManager.Instance.PlaySFX(clickUIAudioData);
         Time.timeScale = 1f;
         // 優先走網路通知（GameScene 會有 QuitNotifier）
         if (QuitNotifier.Instance != null)

@@ -490,6 +490,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CardHover
   dragOffset: 1
   yOffset: 0.2
+  clickCardAudioData:
+    audioClip: {fileID: 8300000, guid: b5c95b143d4cc954abd3d585e174c3c6, type: 3}
+    volume: 1
 --- !u!65 &2782408012358629509
 BoxCollider:
   m_ObjectHideFlags: 0

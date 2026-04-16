@@ -127,6 +127,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 713335007}
     m_Modifications:
+    - target: {fileID: 1984560816461266270, guid: 09430a6816478594d9631def614cdd0b, type: 3}
+      propertyPath: atePieceAudioData.volume
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1984560816461266270, guid: 09430a6816478594d9631def614cdd0b, type: 3}
+      propertyPath: atePieceAudioData.audioClip
+      value: 
+      objectReference: {fileID: 8300000, guid: d49ce35139b4fa646a32f06e29c6fa47, type: 3}
     - target: {fileID: 2248030304722828583, guid: 09430a6816478594d9631def614cdd0b, type: 3}
       propertyPath: GlobalObjectIdHash
       value: 3132024670
@@ -1524,6 +1532,9 @@ MonoBehaviour:
   tileLayerMask:
     serializedVersion: 2
     m_Bits: 128
+  realsePieceAudioData:
+    audioClip: {fileID: 8300000, guid: acbd01cdf53506541ae5c30df72606a1, type: 3}
+    volume: 1
 --- !u!4 &408139557 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4135350641737124222, guid: df2e1ea2dff351842bf07cb7dc0c0856, type: 3}
@@ -1730,6 +1741,12 @@ MonoBehaviour:
   victoryText: {fileID: 157284540}
   resetButton: {fileID: 2069004885}
   exitButton: {fileID: 1039921112}
+  clickUIAudioData:
+    audioClip: {fileID: 8300000, guid: eba645b0abc44994a94c668f78300c7c, type: 3}
+    volume: 1
+  messageUIAudioData:
+    audioClip: {fileID: 8300000, guid: 29018c387ef1120438806a6b340b04c3, type: 3}
+    volume: 1
 --- !u!4 &497963481
 Transform:
   m_ObjectHideFlags: 0
