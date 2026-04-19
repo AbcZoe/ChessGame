@@ -2,6 +2,7 @@ using TMPro;
 using UnityEngine;
 using DG.Tweening;
 using UnityEngine.SceneManagement;
+using System;
 
 public class UIManager : MonoBehaviour
 {
@@ -222,11 +223,18 @@ public class UIManager : MonoBehaviour
     }
     public void LocalReturnToMenu()
     {
-        LanAutoMatchmaker.Instance.CancelMatch();
-        
+        try
+        {
+            if (MatchSystem.Instance != null)
+                MatchSystem.Instance.ExitMatch();
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"[UI] 返回主選單清理失敗（忽略）：{e.Message}");
+        }
+
         SceneManager.LoadScene("StartScene");
     }
-
     public void ForceReturnToMenuAfterDelay(float seconds)
     {
         DOVirtual.DelayedCall(seconds, () =>

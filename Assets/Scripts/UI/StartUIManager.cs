@@ -99,19 +99,21 @@ public class StartUIManager : MonoBehaviour
     {
         AudioManager.Instance.PlaySFX(clickUIAudioData);
         ConnectingPanel.SetActive(true);
-        LanAutoMatchmaker.Instance.StartMatch();
+
+        FindFirstObjectByType<MatchSystem>().QuickMatch();
     }
 
     public void OnCancelMatchClicked()
     {
         AudioManager.Instance.PlaySFX(clickUIAudioData);
         ConnectingPanel.SetActive(false);
-        LanAutoMatchmaker.Instance.CancelMatch();
+        FindFirstObjectByType<MatchSystem>().ExitMatch();
     }
 
     public void OnQuitClicked()
     {
         AudioManager.Instance.PlaySFX(clickUIAudioData);
+        FindFirstObjectByType<MatchSystem>().ExitMatch();
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
 #else
