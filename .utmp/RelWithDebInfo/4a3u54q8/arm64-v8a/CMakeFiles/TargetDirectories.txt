@@ -1,0 +1,5 @@
+C:/Users/Zoe/Documents/GitHub/ChessGame/.utmp/RelWithDebInfo/4a3u54q8/arm64-v8a/CMakeFiles/edit_cache.dir
+C:/Users/Zoe/Documents/GitHub/ChessGame/.utmp/RelWithDebInfo/4a3u54q8/arm64-v8a/CMakeFiles/rebuild_cache.dir
+C:/Users/Zoe/Documents/GitHub/ChessGame/.utmp/RelWithDebInfo/4a3u54q8/arm64-v8a/GameActivity/CMakeFiles/game.dir
+C:/Users/Zoe/Documents/GitHub/ChessGame/.utmp/RelWithDebInfo/4a3u54q8/arm64-v8a/GameActivity/CMakeFiles/edit_cache.dir
+C:/Users/Zoe/Documents/GitHub/ChessGame/.utmp/RelWithDebInfo/4a3u54q8/arm64-v8a/GameActivity/CMakeFiles/rebuild_cache.dir
