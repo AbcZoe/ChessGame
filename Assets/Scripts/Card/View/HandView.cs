@@ -42,8 +42,8 @@ public class HandView : MonoBehaviour
             Vector3 direction = spline.EvaluateTangent(p);
             Quaternion targetRotation = Quaternion.LookRotation(direction, Vector3.up);
             //±ÛÂà½Õ¾ã
-            targetRotation *= Quaternion.Euler(-45, -90, 0);
-            if (!facePlayer) targetRotation *= Quaternion.Euler(-90, 180, 0);
+            targetRotation *= Quaternion.Euler(45, -90, 0);
+            if (!facePlayer) targetRotation *= Quaternion.Euler(90, 180, 0);
 
             cards[i].transform
                 .DORotateQuaternion(targetRotation, duration)

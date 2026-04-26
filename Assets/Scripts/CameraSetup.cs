@@ -19,7 +19,7 @@ public class CameraSetup : MonoBehaviour
     private void FlipCamera()
     {
         // 假設棋盤中心在 (4, 0, 4)（8x8棋盤）
-        Vector3 boardCenter = new Vector3(4f, 0f, 4f);
+        Vector3 boardCenter = new Vector3(4f, 0f, 3.9f);
         mainCamera.transform.RotateAround(boardCenter, Vector3.up, 180f);
 
         mainCamera.transform.position += worldOffset;

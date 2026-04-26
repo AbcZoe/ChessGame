@@ -4,7 +4,6 @@ using UnityEngine;
 public class CardView : MonoBehaviour
 {
     [SerializeField] private TMP_Text Title;
-    [SerializeField] private SpriteRenderer CardImage;
     [SerializeField] private GameObject Wrapper;
 
     public CardData Data { get; private set; }
@@ -18,7 +17,6 @@ public class CardView : MonoBehaviour
         OwnerTeam = -1;
         Data = null;
         Title.text = "Title";
-        CardImage.sprite = null;
     }
 
     public void SetCardData(CardData data, int ownerTeam)
@@ -26,7 +24,6 @@ public class CardView : MonoBehaviour
         Data = data;
         OwnerTeam = ownerTeam;
         Title.text = data.cardName;
-        CardImage.sprite = data.image;
     }
 
     // 使用卡牌功能
