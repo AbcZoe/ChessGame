@@ -219,6 +219,8 @@ public class PlayerInput : MonoBehaviour
         // 用棋子的 NetworkObjectId 當 pieceNetId
         ulong pieceNetId = piece.NetworkObjectId;
 
+        piece.SetPosition(chessBoard.GetTileCenter(dragStartPos.x, dragStartPos.y));
+
         // 再發送移動請求（合法就會被 server 拉到新位置）
         Services.NetInterface?.RequestMove(pieceNetId, hitPos.x, hitPos.y);
 

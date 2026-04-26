@@ -343,8 +343,13 @@ public class ChessBoard : NetworkBehaviour
                 cp.DeadIndex.Value = idxAttacker;
                 cp.IsDead.Value = true;
                 AudioManager.Instance.PlaySFX(atePieceAudioData);
-                // 可選：清掉被吃子的狀態（其實死了也無所謂）
-                // targetPiece.ClearMutualDestructionServer();
+                if (targetPiece.isKing.Value && cp.isKing.Value)
+                {
+                    GameManager.Instance.CheckMate(2);
+                    return true;
+                }
+                else if(cp.isKing.Value)
+                    GameManager.Instance.CheckMate(targetPiece.Team.Value);
             }
         }
         else if (isMove && targetPiece != null)

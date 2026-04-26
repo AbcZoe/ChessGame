@@ -109,8 +109,10 @@ public class UIManager : MonoBehaviour
     public void ShowVictory(int winnerTeam)
     {
         if (victoryPanel == null || victoryText == null) return;
-
-        victoryText.text = $"Team {winnerTeam + 1} Wins!";
+        if(winnerTeam == 2)
+            victoryText.text = $"Draw!!!";
+        else
+            victoryText.text = $"Team {winnerTeam + 1} Wins!";
         UIEffect.Breathe(victoryText.rectTransform, scaleFactor: 1.1f, duration: 1f);
 
         // Åã¥Ü­±ªO
