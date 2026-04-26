@@ -216,9 +216,6 @@ public class PlayerInput : MonoBehaviour
         var piece = currentlyDragging;
         piece.IsDragging = false; // 先清拖曳，讓之後 NV 更新能套用位置
 
-        // 先本地回彈到起點（避免不合法時卡在半空）
-        piece.SetPosition(chessBoard.GetTileCenter(dragStartPos.x, dragStartPos.y));
-
         // 用棋子的 NetworkObjectId 當 pieceNetId
         ulong pieceNetId = piece.NetworkObjectId;
 

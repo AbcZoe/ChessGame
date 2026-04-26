@@ -2329,6 +2329,7 @@ MonoBehaviour:
   ConnectionData:
     Address: 127.0.0.1
     Port: 7777
+    WebSocketPath: /
     ServerListenAddress: 127.0.0.1
     ClientBindPort: 0
   DebugSimulator:
@@ -3673,6 +3674,6 @@ SceneRoots:
   - {fileID: 935762786}
   - {fileID: 412729101}
   - {fileID: 1433382176}
-  - {fileID: 1042372795}
   - {fileID: 1411969269}
+  - {fileID: 1042372795}
   - {fileID: 230932322}
