@@ -4,11 +4,6 @@ using UnityEngine;
 
 public class NGONetGame : NetworkBehaviour, NetInterface
 {
-    public override void OnNetworkSpawn()
-    {
-        Services.SetNetInterface(this);
-    }
-
     public bool IsAuthoritative => IsServer;
     public int LocalTeam => GameManager.Instance != null ? GameManager.Instance.LocalTeam : -1;
 
@@ -21,6 +16,10 @@ public class NGONetGame : NetworkBehaviour, NetInterface
     // Card
     public void RequestUseCard(int cardId) => UseCardServerRpc(cardId);
     public void RequestUseCardOnPiece(int cardId, ulong pieceNetId) => UseCardOnPieceServerRpc(cardId, pieceNetId);
+    public override void OnNetworkSpawn()
+    {
+        Services.SetNetInterface(this);
+    }
 
     //RPC
     #region MoveRequest
@@ -40,7 +39,6 @@ public class NGONetGame : NetworkBehaviour, NetInterface
         int playerTeam = GameManager.Instance.GetClientTeam(sender);
         if (playerTeam == -1) return;
 
-        // �v���G�u�ਫ�ۤv���� + �����ۤv�^�X�]�A�쥻�֤F���^�X���ˬd�^
         if (piece.Team.Value != playerTeam) return;
         if (!GameManager.Instance.IsTeamTurn(playerTeam)) return;
 

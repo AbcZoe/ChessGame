@@ -298,10 +298,8 @@ public class ChessBoard : NetworkBehaviour
     #endregion
 
     #region Move / Attack
-    public bool MoveTo(ChessPiece cp, int x, int y)
+    public void MoveTo(ChessPiece cp, int x, int y)
     {
-        if (!IsServer) return false;
-
         bool attackerAlsoDies = false;
 
         Vector2Int previousPos = new(cp.X.Value, cp.Y.Value);
@@ -311,7 +309,7 @@ public class ChessBoard : NetworkBehaviour
         bool isMove = cp.GetAvailableMoves(ref chessPieces, TILE_COUNT, TILE_COUNT).Contains(targetPos);
         bool isAttack = cp.GetAvailableAttacks(ref chessPieces, TILE_COUNT, TILE_COUNT).Contains(targetPos);
 
-        if (!isMove && !isAttack) return false;
+        if (!isMove && !isAttack) return;
 
         if (isAttack && targetPiece != null && targetPiece.Team.Value != cp.Team.Value)
         {
@@ -319,7 +317,7 @@ public class ChessBoard : NetworkBehaviour
             if (targetPiece.IndestructibleActive.Value)
             {
                 GameManager.Instance?.ShowMessageClientRpc("This piece is in \"Indestructible\" state, cannot be captured.", 2f);
-                return false;
+                return;
             }
 
             // 記下「被吃子」是否有同歸於盡
@@ -346,7 +344,7 @@ public class ChessBoard : NetworkBehaviour
                 if (targetPiece.isKing.Value && cp.isKing.Value)
                 {
                     GameManager.Instance.CheckMate(2);
-                    return true;
+                    return;
                 }
                 else if(cp.isKing.Value)
                     GameManager.Instance.CheckMate(targetPiece.Team.Value);
@@ -355,7 +353,7 @@ public class ChessBoard : NetworkBehaviour
         else if (isMove && targetPiece != null)
         {
             // 目標格有棋子且不是攻擊格 -> 不允許走
-            return false;
+            return;
         }
 
         // 更新棋盤陣列與座標
@@ -376,8 +374,25 @@ public class ChessBoard : NetworkBehaviour
         }
 
         GameManager.Instance.EndAction();
-        return true;
+        return;
     }
 
+    public void ReleseToStart(ChessPiece cp, int x, int y)
+    {
+        Vector2Int previousPos = new(cp.X.Value, cp.Y.Value);
+        Vector2Int targetPos = new(x, y);
+        ChessPiece targetPiece = chessPieces[x, y];
+
+        bool isMove = cp.GetAvailableMoves(ref chessPieces, TILE_COUNT, TILE_COUNT).Contains(targetPos);
+        bool isAttack = cp.GetAvailableAttacks(ref chessPieces, TILE_COUNT, TILE_COUNT).Contains(targetPos);
+
+        if (!isMove && !isAttack)
+        {
+            cp.SetPosition(GetTileCenter(previousPos.x, previousPos.y));
+            return;
+        }
+
+        return;
+    }
     #endregion
 }

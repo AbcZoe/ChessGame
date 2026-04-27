@@ -4,6 +4,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using Unity.Netcode;
+using UnityEditor.Rendering.LookDev;
 
 public class StartUIManager : MonoBehaviour
 {
@@ -12,16 +13,14 @@ public class StartUIManager : MonoBehaviour
     [SerializeField] private GameObject StartPanelBackground;
     [SerializeField] private TMP_Text messageText;
 
-    [Header("Choose Mode UI")]
-    [SerializeField] private GameObject ModePanel;
-    [SerializeField] private GameObject ModePanelBackground;
-    [SerializeField] private GameObject MatchButton;
-    [SerializeField] private GameObject ExitButton;
-    private CanvasGroup modeCanvasGroup;
-
     [Header("Multiplayer UI")]
+    [SerializeField] private GameObject ModePanel; 
+    [SerializeField] private GameObject MatchButton;
+    [SerializeField] private GameObject HostButton;
+    [SerializeField] private GameObject ExitButton;
     [SerializeField] private GameObject ConnectingPanel;
-    [SerializeField] private GameObject CancelMatchButton;
+    [SerializeField] private RoomListUI roomListUI;
+    [SerializeField] private TMP_Text roomDataText;
 
     [Header("Audio Data")]
     [SerializeField] private AudioData startUIAudioData;
@@ -32,15 +31,9 @@ public class StartUIManager : MonoBehaviour
         // 確保時間恢復（非常重要）
         Time.timeScale = 1f;
 
-        if (ModePanel != null)
-        {
-            modeCanvasGroup = ModePanel.GetComponent<CanvasGroup>();
-            if (modeCanvasGroup == null)
-                modeCanvasGroup = ModePanel.AddComponent<CanvasGroup>();
-        }
-
         if (ModePanel != null) ModePanel.SetActive(false);
         if (ConnectingPanel != null) ConnectingPanel.SetActive(false);
+
     }
 
     private void OnEnable()
@@ -50,37 +43,32 @@ public class StartUIManager : MonoBehaviour
             UIEffect.Breathe(messageText.rectTransform, 1.1f, 1f);
         }
     }
+    public void UpdateRoomDataText(string msg)
+    {
+        if (roomDataText != null)
+            roomDataText.text = msg;
+    }
+    public void ClearRoomData()
+    {
+        if (roomDataText != null)
+            roomDataText.text = "";
+    }
 
     private void ShowModePanel()
     {
         AudioManager.Instance.PlaySFX(startUIAudioData);
 
         if (StartPanel != null) StartPanel.SetActive(false);
-        if (ModePanel == null) return;
-
         ModePanel.SetActive(true);
-
         UIEffect.Popup(ModePanel);
-        UIEffect.FadeIn(modeCanvasGroup);
 
         if (MatchButton != null)
             UIEffect.ButtonPopup(MatchButton, 0.6f);
-        if (CancelMatchButton != null)
-            UIEffect.ButtonPopup(CancelMatchButton, 0.6f);
+        if (HostButton != null)
+            UIEffect.ButtonPopup(HostButton, 0.6f);
         if (ExitButton != null)
             UIEffect.ButtonPopup(ExitButton, 0.6f);
-    }
-
-    private void HideModePanel()
-    {
-        if (ModePanel == null) return;
-
-        // 面板淡出 + 縮小
-        UIEffect.FadeOut(modeCanvasGroup, 0.3f);
-        ModePanel.SetActive(false);
-
-        // 可選：回到 StartPanel
-        if (StartPanel != null) StartPanel.SetActive(true);
+        roomListUI.RefreshList();
     }
 
     public void OnShowModeClicked()
@@ -92,15 +80,23 @@ public class StartUIManager : MonoBehaviour
     public void OnCloseModeClicked()
     {
         AudioManager.Instance.PlaySFX(clickUIAudioData);
-        HideModePanel();
+        ModePanel.SetActive(false);
+
+        if (StartPanel != null) StartPanel.SetActive(true);
     }
 
     public void OnMatchClicked()
     {
+        AudioManager.Instance.PlaySFX(clickUIAudioData); 
+        ConnectingPanel.SetActive(true);
+        FindFirstObjectByType<MatchSystem>().QuickMatch();
+    }
+
+    public void OnHostClicked()
+    {
         AudioManager.Instance.PlaySFX(clickUIAudioData);
         ConnectingPanel.SetActive(true);
-
-        FindFirstObjectByType<MatchSystem>().QuickMatch();
+        FindFirstObjectByType<MatchSystem>().HostGame();
     }
 
     public void OnCancelMatchClicked()
@@ -110,7 +106,7 @@ public class StartUIManager : MonoBehaviour
         FindFirstObjectByType<MatchSystem>().ExitMatch();
     }
 
-    public void OnQuitClicked()
+    public void OnExitClicked()
     {
         AudioManager.Instance.PlaySFX(clickUIAudioData);
         FindFirstObjectByType<MatchSystem>().ExitMatch();

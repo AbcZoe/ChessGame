@@ -23,7 +23,6 @@ public class PlayerInput : MonoBehaviour
 
     public int PlayerTeam { get; private set; } = -1; // -1 表示未設定
 
-
     public void Initialize(ChessBoard board, TileHighlighter highlighter, int playerTeam)
     {
         chessBoard = board;
@@ -42,6 +41,7 @@ public class PlayerInput : MonoBehaviour
         }
 
     }
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -80,12 +80,9 @@ public class PlayerInput : MonoBehaviour
 
         bool completed = ChessBoard.Instance.kingSelectionState.Value == KingSelectionState.Completed;
 
-        // A) Hover：只有在「沒在拖曳」時才做
-        if (currentlyDragging == null)
-        {
-            if (hitTile) HandleHover(hitPos);
-            else ResetHover();
-        }
+        
+        if (hitTile) HandleHover(hitPos);
+        else ResetHover();
 
         // B) Drag：只要正在拖曳就永遠更新（不依賴 hitTile）
         if (completed && currentlyDragging != null)
@@ -219,8 +216,7 @@ public class PlayerInput : MonoBehaviour
         // 用棋子的 NetworkObjectId 當 pieceNetId
         ulong pieceNetId = piece.NetworkObjectId;
 
-        piece.SetPosition(chessBoard.GetTileCenter(dragStartPos.x, dragStartPos.y));
-
+        chessBoard.ReleseToStart(piece, hitPos.x, hitPos.y);
         // 再發送移動請求（合法就會被 server 拉到新位置）
         Services.NetInterface?.RequestMove(pieceNetId, hitPos.x, hitPos.y);
 

@@ -10,6 +10,7 @@ using Unity.Services.Lobbies;
 using Unity.Services.Lobbies.Models;
 using Unity.Services.Relay;
 using Unity.Services.Relay.Models;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class MatchSystem : MonoBehaviour
@@ -203,9 +204,21 @@ public class MatchSystem : MonoBehaviour
             }
         };
 
-        currentLobby = await LobbyService.Instance.CreateLobbyAsync("ChessRoom", 2, options);
+        string playerId = AuthenticationService.Instance.PlayerId;
+        string shortId = playerId.Substring(0, 4);
+        string roomName = $"Room_{shortId}";
+
+        currentLobby = await LobbyService.Instance.CreateLobbyAsync(roomName, 2, options);
         isHostLobbyOwner = true;
 
+        var ui = FindFirstObjectByType<StartUIManager>();
+
+        if (ui != null)
+        {
+            ui.UpdateRoomDataText(
+                $"Room Created\nName: {currentLobby.Name}\nID: {currentLobby.Id}"
+            );
+        }
         Debug.Log($"[配對系統] Lobby 建立成功 LobbyId={currentLobby.Id} Name={currentLobby.Name} OwnerId={currentLobby.HostId}");
 
         // Host needs heartbeat to keep lobby alive
@@ -221,8 +234,28 @@ public class MatchSystem : MonoBehaviour
             : "[配對系統] StartHost() 呼叫失敗（請確認 NetworkManager / Transport 設定）");
     }
 
+    public async Task<List<Lobby>> GetLobbyList()
+    {
+        try
+        {
+            var options = new QueryLobbiesOptions
+            {
+                Count = 20
+                // 不加 Filters → 顯示全部房間
+            };
+
+            var result = await LobbyService.Instance.QueryLobbiesAsync(options);
+            return result.Results;
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[配對系統] 取得房間列表失敗: {e}");
+            return new List<Lobby>();
+        }
+    }
+
     // 加入 Relay（Client）
-    async Task JoinRelay(string joinCode)
+    public async Task JoinRelay(string joinCode)
     {
         Debug.Log("[配對系統] Client 流程：JoinAllocation(joinCode)...");
         JoinAllocation allocation = await RelayService.Instance.JoinAllocationAsync(joinCode);
@@ -246,6 +279,25 @@ public class MatchSystem : MonoBehaviour
             : "[配對系統] StartClient() 呼叫失敗（請確認 NetworkManager / Transport 設定）");
     }
 
+    public async void JoinLobbyById(string lobbyId)
+    {
+        try
+        {
+            Debug.Log($"[配對系統] 嘗試手動加入 Lobby: {lobbyId}");
+
+            currentLobby = await LobbyService.Instance.JoinLobbyByIdAsync(lobbyId);
+            isHostLobbyOwner = false;
+
+            string joinCode = currentLobby.Data["joinCode"].Value;
+
+            await JoinRelay(joinCode);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[配對系統] 加入房間失敗: {e}");
+        }
+    }
+
     // 設定 Host Relay
     void SetupHostRelay(Allocation allocation)
     {
@@ -266,6 +318,22 @@ public class MatchSystem : MonoBehaviour
         StopLobbyHeartbeat();
         heartbeatCts = new CancellationTokenSource();
         _ = HeartbeatLoop(lobbyId, heartbeatCts.Token);
+    }
+
+    public async void HostGame()
+    {
+        try
+        {
+            Debug.Log("[配對系統] 手動建立房間...");
+
+            await DisconnectAndCleanup(); // 保險
+
+            await CreateLobbyAndHost();
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[配對系統] Host 失敗: {e}");
+        }
     }
 
     async Task HeartbeatLoop(string lobbyId, CancellationToken ct)
@@ -361,6 +429,7 @@ public class MatchSystem : MonoBehaviour
         }
         hasLoadedGameScene = false;
         Debug.Log("[配對系統] 退出/清理流程完成");
+        FindFirstObjectByType<StartUIManager>()?.ClearRoomData();
     }
 
     private void OnApplicationQuit()
