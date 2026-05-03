@@ -5,16 +5,13 @@ public class PerformanceManager : MonoBehaviour
     public static PerformanceManager Instance;
 
     [SerializeField] private int targetFPS = 60;
-
-    [Header("Aspect Ratio")]
     [SerializeField] private int targetAspectWidth = 16;
     [SerializeField] private int targetAspectHeight = 9;
 
-    private int minWidth;
-    private int minHeight;
+    private Vector2Int lastSize;
+    private float lastChangeTime;
 
-    private int lastWidth;
-    private int lastHeight;
+    private const float debounceTime = 0.15f; // 防抖
 
     private void Awake()
     {
@@ -29,76 +26,58 @@ public class PerformanceManager : MonoBehaviour
 
         QualitySettings.vSyncCount = 0;
         Application.targetFrameRate = targetFPS;
-
-#if UNITY_STANDALONE
-        InitResolution();
-#endif
-    }
-
-    void Start()
-    {
-#if UNITY_ANDROID
-        Screen.orientation = ScreenOrientation.LandscapeLeft;
-#endif
     }
 
     private void Update()
     {
 #if UNITY_STANDALONE
-        // 只有當視窗尺寸改變時才處理
-        if (Screen.width != lastWidth || Screen.height != lastHeight)
-        {
-            lastWidth = Screen.width;
-            lastHeight = Screen.height;
-
-            FixResolution();
-        }
+        HandleResize();
 #endif
     }
 
-#if UNITY_STANDALONE
-    private void InitResolution()
+    private void HandleResize()
     {
-        int screenW = Display.main.systemWidth;
-        int screenH = Display.main.systemHeight;
+        Vector2Int current = new Vector2Int(Screen.width, Screen.height);
 
-        minWidth = screenW / 2;
-        minHeight = screenH / 2;
+        // 視窗沒變 → 不處理
+        if (current == lastSize) return;
 
-        Screen.SetResolution(minWidth, minHeight, FullScreenMode.Windowed);
+        lastSize = current;
+        lastChangeTime = Time.time;
 
-        lastWidth = Screen.width;
-        lastHeight = Screen.height;
+        // 等使用者停下來再修正
+        StartCoroutine(ApplyAfterDelay());
     }
 
-    private void FixResolution()
+    private System.Collections.IEnumerator ApplyAfterDelay()
     {
+        yield return new WaitForSeconds(debounceTime);
+
+        // 如果期間還在變動 → 取消這次修正
+        if (Time.time - lastChangeTime < debounceTime)
+            yield break;
+
+        ApplyAspectRatio();
+    }
+
+    private void ApplyAspectRatio()
+    {   
+        // 全螢幕時不強制比例
+        if (Screen.fullScreenMode != FullScreenMode.Windowed)
+            return;
+
         int width = Screen.width;
         int height = Screen.height;
 
-        // 最小限制
-        width = Mathf.Max(width, minWidth);
-        height = Mathf.Max(height, minHeight);
-
-        // 強制比例 16:9
         float targetRatio = (float)targetAspectWidth / targetAspectHeight;
         float currentRatio = (float)width / height;
 
-        if (Mathf.Abs(currentRatio - targetRatio) > 0.01f)
-        {
-            height = Mathf.RoundToInt(width / targetRatio);
-        }
+        if (Mathf.Abs(currentRatio - targetRatio) < 0.01f)
+            return;
 
-        Screen.SetResolution(width, height, Screen.fullScreenMode);
-    }
-#endif
+        // 以 width 為基準
+        height = Mathf.RoundToInt(width / targetRatio);
 
-    public void SetFullscreen(bool fullscreen)
-    {
-#if UNITY_STANDALONE
-        Screen.fullScreenMode = fullscreen
-            ? FullScreenMode.FullScreenWindow
-            : FullScreenMode.Windowed;
-#endif
+        Screen.SetResolution(width, height, FullScreenMode.Windowed);
     }
 }

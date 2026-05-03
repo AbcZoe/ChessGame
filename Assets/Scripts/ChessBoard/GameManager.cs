@@ -17,7 +17,12 @@ public class GameManager : NetworkBehaviour
 
     public NetworkVariable<int> ExtraActionsLeft = new(0);
 
-    public NetworkVariable<bool> IsPaused = new NetworkVariable<bool>(false);
+    public NetworkVariable<bool> IsPaused =
+    new NetworkVariable<bool>(
+        false,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
 
     private void Awake()
     {
@@ -220,8 +225,8 @@ public class GameManager : NetworkBehaviour
 
     #region UI
 
-    [Rpc(SendTo.ClientsAndHost)]
-    public void ShowMessageClientRpc(string msg, float time = 0)
+    [Rpc(SendTo.SpecifiedInParams)]
+    private void ShowMessageTargetRpc(string msg, float time = 0, RpcParams rpcParams = default)
     {
         StartCoroutine(WaitForUIAndShow(msg, time));
     }
@@ -236,6 +241,42 @@ public class GameManager : NetworkBehaviour
         }
 
         UIManager.Instance?.ShowMessage(msg, time);
+    }
+
+    public void ShowMessageToClient(string msg, float time, ulong clientId)
+    {
+        var sendParams = new RpcParams
+        {
+            Send = new RpcSendParams
+            {
+                Target = RpcTarget.Single(clientId, RpcTargetUse.Temp)
+            }
+        };
+
+        ShowMessageTargetRpc(msg, time, sendParams);
+    }
+
+    public void ShowMessageToClient(string msg, float time, RpcParams sendParams)
+    {
+        ShowMessageTargetRpc(msg, time, sendParams);
+    }
+
+    public void ShowMessageToOthers(string msg, float time, ulong senderClientId)
+    {
+        foreach (var clientId in NetworkManager.Singleton.ConnectedClientsIds)
+        {
+            if (clientId == senderClientId) continue;
+
+            var sendParams = new RpcParams
+            {
+                Send = new RpcSendParams
+                {
+                    Target = RpcTarget.Single(clientId, RpcTargetUse.Temp)
+                }
+            };
+
+            ShowMessageTargetRpc(msg, time, sendParams);
+        }
     }
 
     [Rpc(SendTo.ClientsAndHost)]
@@ -265,12 +306,9 @@ public class GameManager : NetworkBehaviour
     }
 
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-    private void SetPauseServerRpc(bool value, RpcParams rpcParams = default)
+    public void SetPauseServerRpc(bool value, RpcParams rpcParams = default)
     {
         if (!IsServer) return;
-
-        ulong sender = rpcParams.Receive.SenderClientId;
-        if (sender != 0) return;
 
         IsPaused.Value = value;
         SetPauseClientRpc(value);

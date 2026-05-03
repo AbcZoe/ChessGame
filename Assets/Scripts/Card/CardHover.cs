@@ -39,6 +39,9 @@ public class CardHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         if (GameManager.Instance.IsPaused.Value || ChessBoard.Instance.kingSelectionState.Value != KingSelectionState.Completed)
             return;
 
+        if (GameManager.Instance.IsPaused.Value)
+            return;
+
         Ray ray = currentCamera.ScreenPointToRay(Mouse.current.position.ReadValue());
 
         HandleCardDrag(ray);

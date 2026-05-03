@@ -6,6 +6,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using static ChessPiece;
 using static UnityEngine.Audio.ProcessorInstance;
+using static UnityEngine.Rendering.DebugUI;
 
 public enum KingSelectionState
 {
@@ -113,23 +114,31 @@ public class ChessBoard : NetworkBehaviour
 
     private void HandleKingStateUI(KingSelectionState state)
     {
+        var rpcParams = new RpcParams
+        {
+            Send = new RpcSendParams
+            {
+                Target = RpcTarget.ClientsAndHost
+            }
+        };
+
         switch (state)
         {
             case KingSelectionState.WhiteTeamSelecting:
-                GameManager.Instance?.ShowMessageClientRpc("Team 1, please select a piece as your King!");
+                GameManager.Instance?.ShowMessageToClient("Team 1, please select a piece as your King!", 0f, rpcParams);
                 break;
 
             case KingSelectionState.BlackTeamSelecting:
-                GameManager.Instance?.ShowMessageClientRpc("Team 2, please select a piece as your King!");
+                GameManager.Instance?.ShowMessageToClient("Team 2, please select a piece as your King!", 0f, rpcParams);
                 break;
 
             case KingSelectionState.Completed:
-                GameManager.Instance?.ShowMessageClientRpc("Both teams have chosen their Kings. The game starts!", 2f);
+                GameManager.Instance?.ShowMessageToClient("Both teams have chosen their Kings. The game starts!", 2f, rpcParams);
                 UIManager.Instance?.ShowCurrentTurn(GameManager.Instance.CurrentTurnTeam);
                 break;
 
             case KingSelectionState.Reselecting:
-                GameManager.Instance?.ShowMessageClientRpc($"Team {GameManager.Instance.CurrentTurnTeam + 1}, please select a new King!");
+                GameManager.Instance?.ShowMessageToClient($"Team {GameManager.Instance.CurrentTurnTeam + 1}, please select a new King!", 0f, rpcParams);
                 break;
         }
     }
@@ -290,7 +299,7 @@ public class ChessBoard : NetworkBehaviour
         kingSelectionState.Value = KingSelectionState.WhiteTeamSelecting;
         UIManager.Instance.HideRoundText();
         GameManager.Instance.HideVictoryClientRpc();
-        GameManager.Instance.ShowMessageClientRpc("Team 1, please select a piece as your King!", 0f);
+        //GameManager.Instance.ShowMessageClientRpc("Team 1, please select a piece as your King!", 0f);
 
         StartCoroutine(CardSystem.Instance.DealStartingCardsCoroutine());
     }
@@ -298,8 +307,9 @@ public class ChessBoard : NetworkBehaviour
     #endregion
 
     #region Move / Attack
-    public void MoveTo(ChessPiece cp, int x, int y)
+    public void MoveTo(ChessPiece cp, int x, int y, ulong senderClientId)
     {
+        if (!IsServer) return;
         bool attackerAlsoDies = false;
 
         Vector2Int previousPos = new(cp.X.Value, cp.Y.Value);
@@ -316,7 +326,7 @@ public class ChessBoard : NetworkBehaviour
             // 不滅：不能被吃
             if (targetPiece.IndestructibleActive.Value)
             {
-                GameManager.Instance?.ShowMessageClientRpc("This piece is in \"Indestructible\" state, cannot be captured.", 2f);
+                GameManager.Instance?.ShowMessageToClient("This piece is in \"Indestructible\" state, cannot be captured.", 2f, senderClientId);
                 return;
             }
 
@@ -336,7 +346,7 @@ public class ChessBoard : NetworkBehaviour
             if (mutual)
             {
                 attackerAlsoDies = true;
-                GameManager.Instance?.ShowMessageClientRpc("The piece is in \"Mutual Destruction\" state, and both pieces have been captured..", 2f);
+                GameManager.Instance?.ShowMessageToClient("The piece is in \"Mutual Destruction\" state, so both pieces have been captured..", 2f, senderClientId);
                 int idxAttacker = AllocateDeadIndex(cp.Team.Value);
                 cp.DeadIndex.Value = idxAttacker;
                 cp.IsDead.Value = true;
@@ -373,6 +383,20 @@ public class ChessBoard : NetworkBehaviour
             cp.Y.Value = targetPos.y;
         }
 
+        // 升變檢查
+        if (cp is Pawn)
+        {
+            bool shouldPromote =
+                (cp.Team.Value == 0 && cp.Y.Value == 7) ||
+                (cp.Team.Value == 1 && cp.Y.Value == 0);
+
+            if (shouldPromote)
+            {
+                PromoteRequestClientRpc(cp.NetworkObjectId, cp.Team.Value);
+                return;
+            }
+        }
+
         GameManager.Instance.EndAction();
         return;
     }
@@ -393,6 +417,77 @@ public class ChessBoard : NetworkBehaviour
         }
 
         return;
+    }
+
+    /// 升變處理：Server 驗證、Client 顯示 UI、Server 執行升變
+
+    [Rpc(SendTo.ClientsAndHost)]
+    private void PromoteRequestClientRpc(ulong pawnId, int team)
+    {
+        if (GameManager.Instance.LocalTeam != team)
+            return;
+
+        if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(pawnId, out var obj))
+            return;
+
+        ChessPiece pawn = obj.GetComponent<ChessPiece>();
+        if (pawn.IsDead.Value) return;
+
+        UIManager.Instance.ShowPromotionOptions((type) =>
+        {
+            RequestPromotionServerRpc(pawnId, type);
+        });
+    }
+
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    private void RequestPromotionServerRpc(ulong pawnId, PromotionType type, RpcParams rpcParams = default)
+    {
+        ulong sender = rpcParams.Receive.SenderClientId;
+
+        if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(pawnId, out var obj))
+            return;
+
+        ChessPiece pawn = obj.GetComponent<ChessPiece>();
+
+        int senderTeam = GameManager.Instance.GetClientTeam(sender);
+
+        // 防作弊
+        if (pawn.Team.Value != senderTeam)
+            return;
+
+        PromotePawn(pawn, type);
+    }
+
+    private void PromotePawn(ChessPiece pawn, PromotionType type)
+    {
+        int x = pawn.X.Value;
+        int y = pawn.Y.Value;
+        int team = pawn.Team.Value;
+
+        pawn.GetComponent<NetworkObject>().Despawn(true);
+
+        string pieceName = type switch
+        {
+            PromotionType.Queen => "Queen",
+            PromotionType.Rook => "Rook",
+            PromotionType.Bishop => "Bishop",
+            PromotionType.Knight => "Knight",
+            _ => "Queen"
+        };
+
+        ChessPiece newPiece = Instantiate(pieceDataDict[pieceName].prefab)
+            .GetComponent<ChessPiece>();
+
+        var netObj = newPiece.GetComponent<NetworkObject>();
+        netObj.Spawn();
+
+        newPiece.Team.Value = team;
+        newPiece.X.Value = x;
+        newPiece.Y.Value = y;
+
+        chessPieces[x, y] = newPiece;
+
+        GameManager.Instance.EndAction();
     }
     #endregion
 }

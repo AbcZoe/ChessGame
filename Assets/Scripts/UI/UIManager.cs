@@ -3,7 +3,15 @@ using UnityEngine;
 using DG.Tweening;
 using UnityEngine.SceneManagement;
 using System;
+using UnityEngine.UI;
 
+public enum PromotionType
+{
+    Queen,
+    Rook,
+    Bishop,
+    Knight
+}
 public class UIManager : MonoBehaviour
 {
     public static UIManager Instance;
@@ -16,6 +24,10 @@ public class UIManager : MonoBehaviour
     [Header("Persistent UI")]
     [SerializeField] private TMP_Text roundText;
     [SerializeField] private TMP_Text cardDescription;
+
+    [Header("Promotion UI")]
+    [SerializeField] private GameObject PromotionPanel;
+    [SerializeField] private Button[] promotionButtons;
 
     [Header("Pause UI")]
     [SerializeField] private GameObject pausePanel;
@@ -105,6 +117,41 @@ public class UIManager : MonoBehaviour
             roundText.text = "";
     }
 
+    // ===== 升變選擇 ===== 
+    public void ShowPromotionOptions(Action<PromotionType> onSelect)
+    {
+        GameManager.Instance.SetPauseServerRpc(true);
+        if (PromotionPanel == null || promotionButtons == null) return;
+
+        PromotionPanel.SetActive(true);
+
+        for (int i = 0; i < promotionButtons.Length; i++)
+        {
+            PromotionType type = (PromotionType)i;
+
+            var btn = promotionButtons[i];
+
+            btn.onClick.RemoveAllListeners();
+            btn.onClick.AddListener(() =>
+            {
+                AudioManager.Instance.PlaySFX(clickUIAudioData);
+                onSelect?.Invoke(type);
+                HidePromotionOptions();
+                GameManager.Instance.SetPauseServerRpc(false);
+            });
+        }
+    }
+
+    public void HidePromotionOptions()
+    {
+        if (PromotionPanel != null)
+            PromotionPanel.SetActive(false);
+
+        // 清 listener（保險）
+        foreach (var btn in promotionButtons)
+            btn.onClick.RemoveAllListeners();
+    }
+
     // ===== 勝利畫面 =====
     public void ShowVictory(int winnerTeam)
     {
@@ -155,6 +202,8 @@ public class UIManager : MonoBehaviour
         if (cardDescription != null)
             cardDescription.text = "";
     }
+
+    //按鈕事件
     #region Button Events
     public void OnPauseButton()
     {

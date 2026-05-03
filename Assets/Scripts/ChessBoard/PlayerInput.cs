@@ -56,7 +56,8 @@ public class PlayerInput : MonoBehaviour
     private void Update()
     {
         if (chessBoard == null) return;
-
+        if (GameManager.Instance.IsPaused.Value)
+            return;
         HandleMouseInteraction();
     }
 

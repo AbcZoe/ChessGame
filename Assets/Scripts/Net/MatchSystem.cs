@@ -24,6 +24,10 @@ public class MatchSystem : MonoBehaviour
     private bool isMatching = false;
     private bool hasLoadedGameScene = false;
 
+    public event Action OnLobbyListChanged;
+    private List<Lobby> cachedLobbies = new();
+    private CancellationTokenSource refreshCts;
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -61,6 +65,58 @@ public class MatchSystem : MonoBehaviour
         }
 
         RegisterNetcodeCallbacks();
+        StartLobbyRefreshLoop();
+    }
+
+    private async Task RefreshLobby()
+    {
+        var result = await LobbyService.Instance.QueryLobbiesAsync(new QueryLobbiesOptions
+        {
+            Count = 20
+        });
+
+        // 如果內容沒變 → 不通知 UI
+        if (IsSameList(result.Results, cachedLobbies))
+            return;
+
+        cachedLobbies = result.Results;
+        OnLobbyListChanged?.Invoke();
+    }
+    public List<Lobby> GetCachedLobbies()
+    {
+        return cachedLobbies;
+    }
+    void StartLobbyRefreshLoop()
+    {
+        refreshCts = new CancellationTokenSource();
+        _ = LobbyRefreshLoop(refreshCts.Token);
+    }
+
+    async Task LobbyRefreshLoop(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            await RefreshLobby();
+
+            try
+            {
+                await Task.Delay(3000, ct); // 3秒一次（建議）
+            }
+            catch { }
+        }
+    }
+    private bool IsSameList(List<Lobby> a, List<Lobby> b)
+    {
+        if (a.Count != b.Count) return false;
+
+        for (int i = 0; i < a.Count; i++)
+        {
+            if (a[i].Id != b[i].Id ||
+                a[i].AvailableSlots != b[i].AvailableSlots)
+                return false;
+        }
+
+        return true;
     }
 
     void RegisterNetcodeCallbacks()
@@ -159,6 +215,7 @@ public class MatchSystem : MonoBehaviour
                 Debug.Log($"[配對系統] 找到房間，嘗試加入 LobbyId={target.Id} Name={target.Name}");
 
                 currentLobby = await LobbyService.Instance.JoinLobbyByIdAsync(target.Id);
+                OnLobbyListChanged?.Invoke(); // 通知 UI 刷新房間列表（如果有的話）
                 isHostLobbyOwner = false;
 
                 Debug.Log($"[配對系統] 加入 Lobby 成功 LobbyId={currentLobby.Id} OwnerId={currentLobby.HostId}");
@@ -209,6 +266,7 @@ public class MatchSystem : MonoBehaviour
         string roomName = $"Room_{shortId}";
 
         currentLobby = await LobbyService.Instance.CreateLobbyAsync(roomName, 2, options);
+        OnLobbyListChanged?.Invoke(); // 通知 UI 刷新房間列表（如果有的話）
         isHostLobbyOwner = true;
 
         var ui = FindFirstObjectByType<StartUIManager>();
@@ -232,26 +290,6 @@ public class MatchSystem : MonoBehaviour
         Debug.Log(ok
             ? "[配對系統] StartHost() 呼叫成功，等待 Client 連線..."
             : "[配對系統] StartHost() 呼叫失敗（請確認 NetworkManager / Transport 設定）");
-    }
-
-    public async Task<List<Lobby>> GetLobbyList()
-    {
-        try
-        {
-            var options = new QueryLobbiesOptions
-            {
-                Count = 20
-                // 不加 Filters → 顯示全部房間
-            };
-
-            var result = await LobbyService.Instance.QueryLobbiesAsync(options);
-            return result.Results;
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"[配對系統] 取得房間列表失敗: {e}");
-            return new List<Lobby>();
-        }
     }
 
     // 加入 Relay（Client）
@@ -291,6 +329,7 @@ public class MatchSystem : MonoBehaviour
             string joinCode = currentLobby.Data["joinCode"].Value;
 
             await JoinRelay(joinCode);
+            OnLobbyListChanged?.Invoke(); // 通知 UI 刷新房間列表（如果有的話）
         }
         catch (Exception e)
         {
@@ -416,6 +455,7 @@ public class MatchSystem : MonoBehaviour
                 }
 
                 currentLobby = null;
+                OnLobbyListChanged?.Invoke(); // 通知 UI 刷新房間列表（如果有的話）
                 isHostLobbyOwner = false;
             }
             else
@@ -429,6 +469,7 @@ public class MatchSystem : MonoBehaviour
         }
         hasLoadedGameScene = false;
         Debug.Log("[配對系統] 退出/清理流程完成");
+
         FindFirstObjectByType<StartUIManager>()?.ClearRoomData();
     }
 

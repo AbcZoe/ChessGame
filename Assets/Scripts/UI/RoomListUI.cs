@@ -9,30 +9,50 @@ public class RoomListUI : MonoBehaviour
     [SerializeField] private Transform contentRoot;
     [SerializeField] private GameObject roomItemPrefab;
 
-    public async void RefreshList()
+    private Dictionary<string, LobbyItemUI> roomMap = new();
+
+    public void RefreshList(List<Lobby> lobbies)
     {
-        Clear();
-
-        var lobbies = await MatchSystem.Instance.GetLobbyList();
-
-        Debug.Log($"房間數: {lobbies.Count}");
+        HashSet<string> alive = new();
 
         foreach (var lobby in lobbies)
         {
-            GameObject item = Instantiate(roomItemPrefab, contentRoot);
+            alive.Add(lobby.Id);
 
-            var ui = item.GetComponent<LobbyItemUI>();
-
-            ui.Setup(lobby, (id) =>
+            if (roomMap.TryGetValue(lobby.Id, out var item))
             {
-                MatchSystem.Instance.JoinLobbyById(id);
-            });
+                item.Setup(lobby, OnClickJoin); // 更新
+            }
+            else
+            {
+                // 新房間
+                GameObject go = Instantiate(roomItemPrefab, contentRoot);
+                var ui = go.GetComponent<LobbyItemUI>();
+
+                ui.Setup(lobby, OnClickJoin);
+                roomMap[lobby.Id] = ui;
+            }
+        }
+
+        // 移除不存在的房間
+        var removeList = new List<string>();
+
+        foreach (var kv in roomMap)
+        {
+            if (!alive.Contains(kv.Key))
+                removeList.Add(kv.Key);
+        }
+
+        foreach (var id in removeList)
+        {
+            Destroy(roomMap[id].gameObject);
+            roomMap.Remove(id);
         }
     }
 
-    void Clear()
+    private void OnClickJoin(string lobbyId)
     {
-        foreach (Transform child in contentRoot)
-            Destroy(child.gameObject);
+        MatchSystem.Instance.JoinLobbyById(lobbyId);
     }
+
 }

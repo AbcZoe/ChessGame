@@ -42,7 +42,7 @@ public class NGONetGame : NetworkBehaviour, NetInterface
         if (piece.Team.Value != playerTeam) return;
         if (!GameManager.Instance.IsTeamTurn(playerTeam)) return;
 
-        ChessBoard.Instance.MoveTo(piece, targetX, targetY);
+        ChessBoard.Instance.MoveTo(piece, targetX, targetY, sender);
     }
 
     #endregion
@@ -91,7 +91,7 @@ public class NGONetGame : NetworkBehaviour, NetInterface
         if (GameManager.Instance.IsPaused.Value) return;
         if (ChessBoard.Instance.kingSelectionState.Value != KingSelectionState.Completed) return;
 
-        bool ok = CardServerExecutor.ExecuteCard_Server(cardId, team, targetPieceNetId: null);
+        bool ok = CardServerExecutor.ExecuteCard_Server(cardId, team, targetPieceNetId: null, sender);
 
         if (ok)
             GameManager.Instance.EndAction();
@@ -119,7 +119,7 @@ public class NGONetGame : NetworkBehaviour, NetInterface
         if (piece.Team.Value != team) return;
         if (piece.IsDead.Value) return;
 
-        bool ok = CardServerExecutor.ExecuteCard_Server(cardId, team, pieceNetId);
+        bool ok = CardServerExecutor.ExecuteCard_Server(cardId, team, pieceNetId, sender);
 
         if (ok)
             GameManager.Instance.EndAction();

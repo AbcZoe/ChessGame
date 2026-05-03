@@ -4,7 +4,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using Unity.Netcode;
-using UnityEditor.Rendering.LookDev;
+using System.Threading.Tasks;
 
 public class StartUIManager : MonoBehaviour
 {
@@ -42,7 +42,22 @@ public class StartUIManager : MonoBehaviour
         {
             UIEffect.Breathe(messageText.rectTransform, 1.1f, 1f);
         }
+        if (MatchSystem.Instance != null)
+            MatchSystem.Instance.OnLobbyListChanged += RefreshLobby;
     }
+
+    private void OnDisable()
+    {
+        if (MatchSystem.Instance != null)
+            MatchSystem.Instance.OnLobbyListChanged -= RefreshLobby;
+    }
+
+    private void RefreshLobby()
+    {
+        var list = MatchSystem.Instance.GetCachedLobbies();
+        roomListUI.RefreshList(list);
+    }
+
     public void UpdateRoomDataText(string msg)
     {
         if (roomDataText != null)
@@ -68,7 +83,6 @@ public class StartUIManager : MonoBehaviour
             UIEffect.ButtonPopup(HostButton, 0.6f);
         if (ExitButton != null)
             UIEffect.ButtonPopup(ExitButton, 0.6f);
-        roomListUI.RefreshList();
     }
 
     public void OnShowModeClicked()
