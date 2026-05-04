@@ -208,8 +208,10 @@ public class PlayerInput : MonoBehaviour
             else
             {
                 // 尚未超過門檻就放開：視為「點一下」
-                // 你目前的規則是用拖曳來移動，所以這裡不做 move。
-                // 如果你之後要「點一下顯示可走格/再點格子移動」，就從這裡延伸。
+                if (touchPressedPiece != null)
+                {
+                    HandleClickPiece(touchPressedPiece);
+                }
             }
 
             // 清狀態
