@@ -21,8 +21,6 @@ public class CardSystem : NetworkBehaviour
     // 在 CardSystem 類別內新增
     private int nextCardInstanceId = 1;
 
-
-
     private void Awake()
     {
         if (Instance == null) Instance = this;

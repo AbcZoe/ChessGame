@@ -2,6 +2,7 @@ using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.Controls;
 
 public class CardHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
@@ -42,15 +43,18 @@ public class CardHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         if (GameManager.Instance.IsPaused.Value)
             return;
 
-        Ray ray = currentCamera.ScreenPointToRay(Mouse.current.position.ReadValue());
+        var pointer = Pointer.current;
+        if (pointer == null) return;
 
-        HandleCardDrag(ray);
+        Ray ray = currentCamera.ScreenPointToRay(pointer.position.ReadValue());
+
+        HandleCardDrag(pointer, ray);
     }
 
-    private void HandleCardDrag(Ray ray)
+    private void HandleCardDrag(Pointer pointer, Ray ray)
     {
-        // 按下滑鼠開始拖曳
-        if (Mouse.current.leftButton.wasPressedThisFrame)
+        // 按下開始拖曳
+        if (pointer.press is ButtonControl press && press.wasPressedThisFrame)
         {
             RaycastHit hit;
             if (Physics.Raycast(ray, out hit, 100))
@@ -68,7 +72,7 @@ public class CardHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         }
 
         // 拖曳中
-        if (isDragging && Mouse.current.leftButton.isPressed)
+        if (isDragging && pointer.press is ButtonControl pressHold && pressHold.isPressed)
         {
             Plane plane = new Plane(Vector3.up, Vector3.up * yOffset);
             if (plane.Raycast(ray, out float distance))
@@ -78,8 +82,8 @@ public class CardHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
             }
         }
 
-        // 放開滑鼠
-        if (isDragging && Mouse.current.leftButton.wasReleasedThisFrame)
+        // 放開
+        if (isDragging && pointer.press is ButtonControl pressUp && pressUp.wasReleasedThisFrame)
         {
             isDragging = false;
 
@@ -117,6 +121,5 @@ public class CardHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
 
         // 卡牌回收
         CardSystem.Instance.UseCardServerRpc(cardView.CardInstanceId, cardView.OwnerTeam);
-
     }
 }
