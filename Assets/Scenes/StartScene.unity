@@ -654,6 +654,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -7511558181221131132, guid: ded14aa4034b2ec4a941e90d13f7f249, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 23b60c5fd856c124dbfc62257a97c308, type: 2}
     - target: {fileID: 919132149155446097, guid: ded14aa4034b2ec4a941e90d13f7f249, type: 3}
       propertyPath: m_Name
       value: Rook
@@ -761,6 +765,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -7511558181221131132, guid: 65cad8822ab332847bb865a32066886e, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: ed16892e143680f4da45e09af8ffda05, type: 2}
     - target: {fileID: 919132149155446097, guid: 65cad8822ab332847bb865a32066886e, type: 3}
       propertyPath: m_Name
       value: Bishop
@@ -823,6 +831,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -7511558181221131132, guid: 72330ed2d621e1946bdf8eea585bc992, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 1e88c5643776648429cac26e47971e22, type: 2}
     - target: {fileID: 919132149155446097, guid: 72330ed2d621e1946bdf8eea585bc992, type: 3}
       propertyPath: m_Name
       value: Queen
@@ -2159,6 +2171,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -7511558181221131132, guid: 0d98ab47e1a3ea54dbc99529b4193c7f, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 94d22b9ac147e0b40ac933109515d14e, type: 2}
     - target: {fileID: 919132149155446097, guid: 0d98ab47e1a3ea54dbc99529b4193c7f, type: 3}
       propertyPath: m_Name
       value: Pawn
@@ -2869,7 +2885,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: 7eb5b2a9fcba3ee45b0493487236ff0a, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 3.3
+      value: 3.4
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 7eb5b2a9fcba3ee45b0493487236ff0a, type: 3}
       propertyPath: m_LocalPosition.y
@@ -2907,6 +2923,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -7511558181221131132, guid: 7eb5b2a9fcba3ee45b0493487236ff0a, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 3c8a54ef9a4397e478cc19c5c2ef3f1f, type: 2}
     - target: {fileID: 919132149155446097, guid: 7eb5b2a9fcba3ee45b0493487236ff0a, type: 3}
       propertyPath: m_Name
       value: King
@@ -3615,6 +3635,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -7511558181221131132, guid: cef70142b38c0dc4dbea3361ce7b435d, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 94d22b9ac147e0b40ac933109515d14e, type: 2}
     - target: {fileID: 919132149155446097, guid: cef70142b38c0dc4dbea3361ce7b435d, type: 3}
       propertyPath: m_Name
       value: Knight

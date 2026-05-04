@@ -1,8 +1,7 @@
 using System;
-using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using static UnityEngine.Audio.ProcessorInstance;
+using UnityEngine.InputSystem.Controls;
 
 public class PlayerInput : MonoBehaviour
 {
@@ -21,7 +20,10 @@ public class PlayerInput : MonoBehaviour
     [Header("Audio Data")]
     [SerializeField] private AudioData realsePieceAudioData;
 
-    public int PlayerTeam { get; private set; } = -1; // -1 表示未設定
+    public int PlayerTeam { get; private set; } = -1;
+
+    // 手機操作：我們鎖定「同一根手指」的 touchId，避免多指干擾
+    private int activeTouchId = -1;
 
     public void Initialize(ChessBoard board, TileHighlighter highlighter, int playerTeam)
     {
@@ -29,17 +31,14 @@ public class PlayerInput : MonoBehaviour
         tileHighlighter = highlighter;
         PlayerTeam = playerTeam;
 
-
         if (chessBoard == null)
             Debug.LogError("PlayerInput 初始化錯誤: chessBoard 為 null!");
 
-        // 找到 CameraSetup 並翻轉相機
         CameraSetup camSetup = UnityEngine.Object.FindAnyObjectByType<CameraSetup>();
         if (camSetup != null)
         {
             camSetup.SetupCamera(PlayerTeam);
         }
-
     }
 
     private void Awake()
@@ -49,56 +48,82 @@ public class PlayerInput : MonoBehaviour
             Destroy(gameObject);
             return;
         }
-
         Instance = this;
     }
 
     private void Update()
     {
         if (chessBoard == null) return;
-        if (GameManager.Instance.IsPaused.Value)
-            return;
-        HandleMouseInteraction();
+        if (GameManager.Instance.IsPaused.Value) return;
+
+        HandlePointerOrTouchInteraction();
     }
 
-    private void HandleMouseInteraction()
+    // ------------------------------------------------------------
+    // Mobile-friendly input
+    // ------------------------------------------------------------
+    private void HandlePointerOrTouchInteraction()
     {
         if (!currentCamera) currentCamera = Camera.main;
-        if (!currentCamera || Mouse.current == null) return;
+        if (!currentCamera) return;
 
-        // 確認 ChessBoard 和陣列都存在
         if (ChessBoard.Instance == null || ChessBoard.Instance.chessPieces == null)
             return;
 
-        Vector2 mousePos = Mouse.current.position.ReadValue();
-        Ray ray = currentCamera.ScreenPointToRay(mousePos);
+        bool completed = ChessBoard.Instance.kingSelectionState.Value == KingSelectionState.Completed;
 
-        // 1) Hover用 Tile raycast
+        // 1) 優先使用 Touch（更符合手機）
+        if (Touchscreen.current != null)
+        {
+            HandleTouch(completed);
+            return;
+        }
+
+        // 2) 沒有 Touchscreen 時，回退使用 Pointer（桌機/筆）
+        HandlePointer(completed);
+    }
+
+    private void HandleTouch(bool completed)
+    {
+        var ts = Touchscreen.current;
+        if (ts == null) return;
+
+        var touch = ts.primaryTouch;
+
+        // primaryTouch 沒在按就視為沒有互動
+        bool isPressed = touch.press.isPressed;
+        bool pressedThisFrame = touch.press.wasPressedThisFrame;
+        bool releasedThisFrame = touch.press.wasReleasedThisFrame;
+
+        // 手機：不按住就不 hover，並且把 hover 清掉（避免一直亮著）
+        if (!isPressed && !pressedThisFrame)
+        {
+            ResetHover();
+            return;
+        }
+
+        // 鎖定 activeTouchId（只處理同一根手指）
+        if (pressedThisFrame)
+            activeTouchId = touch.touchId.ReadValue();
+
+        // 如果 touchId 變了（例如多指或系統切換），忽略這一幀避免亂跳
+        if (activeTouchId != -1 && touch.touchId.ReadValue() != activeTouchId)
+            return;
+
+        Vector2 screenPos = touch.position.ReadValue();
+        Ray ray = currentCamera.ScreenPointToRay(screenPos);
+
         bool hitTile = Physics.Raycast(ray, out RaycastHit tileHit, 100, tileLayerMask);
         Vector2Int hitPos = -Vector2Int.one;
         if (hitTile)
             hitPos = chessBoard.GetHitTileIndex(tileHit.transform.gameObject);
 
-        bool completed = ChessBoard.Instance.kingSelectionState.Value == KingSelectionState.Completed;
-
-        
+        // 按住時才 hover
         if (hitTile) HandleHover(hitPos);
         else ResetHover();
 
-        // B) Drag：只要正在拖曳就永遠更新（不依賴 hitTile）
-        if (completed && currentlyDragging != null)
-            HandleDrag(ray);
-
-        // C) Release：在 releasedThisFrame 那一幀分流
-        if (completed && currentlyDragging != null && Mouse.current.leftButton.wasReleasedThisFrame)
-        {
-            if (hitTile) HandleRelease(hitPos);
-            else HandleReleaseOnEmpty();
-            return; // 避免同一幀又進入按下邏輯
-        }
-
-        // D) Press：你原本的按下開始拖曳邏輯（維持）
-        if (Mouse.current.leftButton.wasPressedThisFrame)
+        // 1) Press：開始拖曳 / 選卡牌目標
+        if (pressedThisFrame)
         {
             ChessPiece clicked = null;
 
@@ -106,9 +131,9 @@ public class PlayerInput : MonoBehaviour
                 clicked = pieceHit.collider.GetComponent<ChessPiece>();
             else if (hitTile)
                 clicked = FindPieceAtTile(hitPos);
+
             if (selectingCardTarget)
             {
-                // 只能選自己隊伍、且要是活著的棋子（你用 IsDead）
                 if (clicked != null && clicked.Team.Value == PlayerTeam && !clicked.IsDead.Value)
                 {
                     onCardTargetSelected?.Invoke(clicked);
@@ -121,26 +146,111 @@ public class PlayerInput : MonoBehaviour
                 return;
             }
 
-            // 正常拖曳流程
+            HandleClickPiece(clicked);
+        }
+
+        // 2) Drag：按住期間更新拖曳位置
+        if (completed && currentlyDragging != null && isPressed)
+            HandleDrag(ray);
+
+        // 3) Release：放開時落子（或回原位）
+        if (completed && currentlyDragging != null && releasedThisFrame)
+        {
+            if (hitTile) HandleRelease(hitPos);
+            else HandleReleaseOnEmpty();
+
+            activeTouchId = -1;
+            ResetHover(); // 放開後清 hover，更像手機
+            return;
+        }
+
+        // 放開但沒有正在拖曳，也把 touchId 解鎖
+        if (releasedThisFrame)
+        {
+            activeTouchId = -1;
+            ResetHover();
+        }
+    }
+
+    private void HandlePointer(bool completed)
+    {
+        var pointer = Pointer.current;
+        if (pointer == null) return;
+
+        Vector2 screenPos = pointer.position.ReadValue();
+        Ray ray = currentCamera.ScreenPointToRay(screenPos);
+
+        bool hitTile = Physics.Raycast(ray, out RaycastHit tileHit, 100, tileLayerMask);
+        Vector2Int hitPos = -Vector2Int.one;
+        if (hitTile)
+            hitPos = chessBoard.GetHitTileIndex(tileHit.transform.gameObject);
+
+        // 桌機：可以維持 hover
+        if (hitTile) HandleHover(hitPos);
+        else ResetHover();
+
+        if (completed && currentlyDragging != null)
+            HandleDrag(ray);
+
+        if (completed && currentlyDragging != null && IsPointerReleasedThisFrame(pointer))
+        {
+            if (hitTile) HandleRelease(hitPos);
+            else HandleReleaseOnEmpty();
+            return;
+        }
+
+        if (IsPointerPressedThisFrame(pointer))
+        {
+            ChessPiece clicked = null;
+
+            if (Physics.Raycast(ray, out RaycastHit pieceHit, 100, pieceLayerMask))
+                clicked = pieceHit.collider.GetComponent<ChessPiece>();
+            else if (hitTile)
+                clicked = FindPieceAtTile(hitPos);
+
+            if (selectingCardTarget)
+            {
+                if (clicked != null && clicked.Team.Value == PlayerTeam && !clicked.IsDead.Value)
+                {
+                    onCardTargetSelected?.Invoke(clicked);
+                    EndSelectFriendlyPiece();
+                }
+                else
+                {
+                    UIManager.Instance?.ShowMessage("Please select one of our surviving pieces.", 1.5f);
+                }
+                return;
+            }
+
             HandleClickPiece(clicked);
         }
     }
 
+    private static bool IsPointerPressedThisFrame(Pointer pointer)
+    {
+        if (pointer?.press is ButtonControl b) return b.wasPressedThisFrame;
+        return false;
+    }
+
+    private static bool IsPointerReleasedThisFrame(Pointer pointer)
+    {
+        if (pointer?.press is ButtonControl b) return b.wasReleasedThisFrame;
+        return false;
+    }
+
+    // ------------------------------------------------------------
+    // Existing code (Hover/Drag/Release/Cards)
+    // ------------------------------------------------------------
+
     #region Hover
     private void HandleHover(Vector2Int hitPos)
     {
-        // 把之前 hover 過的格子恢復
         if (currentHoverdTile != -Vector2Int.one && currentHoverdTile != hitPos)
         {
-            // 如果之前的 tile 被 TileHighlighter 高亮過，就保留 move/attack 材質
             if (tileHighlighter != null && tileHighlighter.IsHighlighted(currentHoverdTile))
-            {
                 tileHighlighter.RestoreTileMaterialIfHighlighted(currentHoverdTile);
-            }
             else
-            {
                 chessBoard.SetTileDefaultMaterial(currentHoverdTile.x, currentHoverdTile.y);
-            }
         }
 
         currentHoverdTile = hitPos;
@@ -154,7 +264,6 @@ public class PlayerInput : MonoBehaviour
 
         currentHoverdTile = -Vector2Int.one;
     }
-
     #endregion
 
     #region Drag
@@ -165,7 +274,7 @@ public class PlayerInput : MonoBehaviour
         var pieces = FindObjectsByType<ChessPiece>(FindObjectsSortMode.None);
         foreach (var p in pieces)
         {
-            if (!p.IsSpawned) continue; // NGO safety
+            if (!p.IsSpawned) continue;
             if (p.X.Value == tilePos.x && p.Y.Value == tilePos.y)
                 return p;
         }
@@ -177,7 +286,6 @@ public class PlayerInput : MonoBehaviour
         if (piece == null) return;
         if (piece.IsDead.Value) return;
 
-        // 選王階段
         if (ChessBoard.Instance.kingSelectionState.Value != KingSelectionState.Completed)
         {
             if (piece.Team.Value == PlayerTeam)
@@ -185,7 +293,6 @@ public class PlayerInput : MonoBehaviour
             return;
         }
 
-        // 要自己回合 + 自己隊伍才允許開始拖曳
         if (piece.Team.Value != PlayerTeam) return;
         if (!GameManager.Instance.IsTeamTurn(PlayerTeam)) return;
 
@@ -200,7 +307,6 @@ public class PlayerInput : MonoBehaviour
         if (currentlyDragging == null) return;
         Plane plane = new(Vector3.up, Vector3.up * chessBoard.yOffset);
         if (plane.Raycast(ray, out float distance))
-            //只改本地 transform，不動 NetworkVariable
             currentlyDragging.SetPosition(ray.GetPoint(distance) + Vector3.up * chessBoard.dragOffset);
     }
     #endregion
@@ -208,17 +314,16 @@ public class PlayerInput : MonoBehaviour
     #region Release
     private void HandleRelease(Vector2Int hitPos)
     {
-        if (currentlyDragging == null || !Mouse.current.leftButton.wasReleasedThisFrame) return;
+        if (currentlyDragging == null) return;
+
         AudioManager.Instance.PlaySFX(realsePieceAudioData);
 
         var piece = currentlyDragging;
-        piece.IsDragging = false; // 先清拖曳，讓之後 NV 更新能套用位置
+        piece.IsDragging = false;
 
-        // 用棋子的 NetworkObjectId 當 pieceNetId
         ulong pieceNetId = piece.NetworkObjectId;
 
         chessBoard.ReleseToStart(piece, hitPos.x, hitPos.y);
-        // 再發送移動請求（合法就會被 server 拉到新位置）
         Services.NetInterface?.RequestMove(pieceNetId, hitPos.x, hitPos.y);
 
         tileHighlighter.RemoveHighlight();
@@ -227,7 +332,8 @@ public class PlayerInput : MonoBehaviour
 
     private void HandleReleaseOnEmpty()
     {
-        if (currentlyDragging == null || !Mouse.current.leftButton.wasReleasedThisFrame) return;
+        if (currentlyDragging == null) return;
+
         AudioManager.Instance.PlaySFX(realsePieceAudioData);
 
         var piece = currentlyDragging;
@@ -249,7 +355,6 @@ public class PlayerInput : MonoBehaviour
         selectingCardTarget = true;
         onCardTargetSelected = onSelected;
 
-        // 防止正在拖曳時切模式造成怪狀態
         if (currentlyDragging != null)
         {
             currentlyDragging.IsDragging = false;
@@ -257,6 +362,7 @@ public class PlayerInput : MonoBehaviour
             tileHighlighter?.RemoveHighlight();
         }
     }
+
     private void EndSelectFriendlyPiece()
     {
         selectingCardTarget = false;
