@@ -191,7 +191,6 @@ public class ChessPiece : NetworkBehaviour
         IndestructibleTurnsLeft.Value = Mathf.Max(1, turns);
     }
 
-
     public void TickStatusOnTurnSwitchServer()
     {
         if (!IsServer) return;

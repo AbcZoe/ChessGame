@@ -16,6 +16,7 @@ public class NGONetGame : NetworkBehaviour, NetInterface
     // Card
     public void RequestUseCard(int cardId) => UseCardServerRpc(cardId);
     public void RequestUseCardOnPiece(int cardId, ulong pieceNetId) => UseCardOnPieceServerRpc(cardId, pieceNetId);
+
     public override void OnNetworkSpawn()
     {
         Services.SetNetInterface(this);
@@ -91,7 +92,7 @@ public class NGONetGame : NetworkBehaviour, NetInterface
         if (GameManager.Instance.IsPaused.Value) return;
         if (ChessBoard.Instance.kingSelectionState.Value != KingSelectionState.Completed) return;
 
-        bool ok = CardServerExecutor.ExecuteCard_Server(cardId, team, targetPieceNetId: null, sender);
+        bool ok = CardServerExecutor.ExecuteCard_Server(cardId, team, targetPieceNetId: null, targetTile: null, senderClientId: sender);
 
         if (ok)
             GameManager.Instance.EndAction();
@@ -119,9 +120,10 @@ public class NGONetGame : NetworkBehaviour, NetInterface
         if (piece.Team.Value != team) return;
         if (piece.IsDead.Value) return;
 
-        bool ok = CardServerExecutor.ExecuteCard_Server(cardId, team, pieceNetId, sender);
+        bool ok = CardServerExecutor.ExecuteCard_Server(cardId, team, targetPieceNetId: pieceNetId, targetTile: null, senderClientId: sender);
 
         if (ok)
             GameManager.Instance.EndAction();
     }
+
 }

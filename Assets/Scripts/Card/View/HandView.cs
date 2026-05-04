@@ -23,6 +23,24 @@ public class HandView : MonoBehaviour
         yield return UpdateCardPosition(0.15f);
     }
 
+    // 新增：用 id 找到那張卡
+    public CardView FindCardByInstanceId(int cardInstanceId)
+    {
+        return cards.Find(c => c != null && c.CardInstanceId == cardInstanceId);
+    }
+
+    // 新增：移除並重新排版
+    public void RemoveCard(CardView cardView)
+    {
+        if (cardView == null) return;
+
+        if (cards.Remove(cardView))
+        {
+            // 重新排列（這裡用協程重排）
+            StartCoroutine(UpdateCardPosition(0.15f));
+        }
+    }
+
     private IEnumerator UpdateCardPosition(float duration)
     {
         if (cards.Count == 0) yield break;

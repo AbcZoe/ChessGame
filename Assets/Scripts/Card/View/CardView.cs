@@ -9,6 +9,9 @@ public class CardView : MonoBehaviour
     public CardData Data { get; private set; }
     public int OwnerTeam { get; private set; }
 
+    // 新增：同一張「手牌實體」在所有 Client 的共同識別
+    public int CardInstanceId { get; set; } = -1;
+
     public string CardName => Data != null ? Data.cardName : "";
     public string Description => Data != null ? Data.description : "";
 
@@ -16,6 +19,7 @@ public class CardView : MonoBehaviour
     {
         OwnerTeam = -1;
         Data = null;
+        CardInstanceId = -1;
         Title.text = "Title";
     }
 

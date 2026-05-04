@@ -3,22 +3,26 @@ using UnityEngine;
 
 public static class CardServerExecutor
 {
-    public static bool ExecuteCard_Server(int cardId, int casterTeam, ulong? targetPieceNetId, ulong senderClientId)
+    public static bool ExecuteCard_Server(int cardId, int casterTeam, ulong? targetPieceNetId, Vector2Int? targetTile, ulong senderClientId)
     {
         if (GameManager.Instance == null || !GameManager.Instance.IsServer) return false;
 
         switch (cardId)
         {
             case 0: // ResetKingCard
-                KingManager.Instance.HandleResetKingSelection_Server(casterTeam);
-                GameManager.Instance.ShowMessageToClient("You used the card \"Reset King\".", 2f, senderClientId);
-                GameManager.Instance.ShowMessageToOthers("The enemy used the card \"Reset King\".", 2f, senderClientId);
-                return false;  // 這張卡不會結束行動，因為它需要對方重新選王，等對方選完王才結束行動
+                {
+                    KingManager.Instance.HandleResetKingSelection_Server(casterTeam);
+                    GameManager.Instance.ShowMessageToClient("You used the card \"Reset King\".", 2f, senderClientId);
+                    GameManager.Instance.ShowMessageToOthers("The enemy used the card \"Reset King\".", 2f, senderClientId);
+                    return false;  // 這張卡不會結束行動，因為它需要對方重新選王，等對方選完王才結束行動
+                }
 
             case 1: // NothingCard
-                GameManager.Instance.ShowMessageToClient("You used the card \"Nothing Happend\".", 2f, senderClientId);
-                GameManager.Instance.ShowMessageToOthers("The enemy used the card \"Nothing Happend\".", 2f, senderClientId);
-                return true;
+                {
+                    GameManager.Instance.ShowMessageToClient("You used the card \"Nothing Happend\".", 2f, senderClientId);
+                    GameManager.Instance.ShowMessageToOthers("The enemy used the card \"Nothing Happend\".", 2f, senderClientId);
+                    return true;
+                }
 
             case 2: // MutualDestructionCard (needs target)
                 {
@@ -43,10 +47,12 @@ public static class CardServerExecutor
                 }
 
             case 4: // DoubleActionCard
+                { 
                 GameManager.Instance.GrantExtraActionServer(1);
                 GameManager.Instance.ShowMessageToClient("You used the card \"Double Action\".", 2f, senderClientId);
                 GameManager.Instance.ShowMessageToOthers("The enemy used the card \"Double Action\".", 2f, senderClientId);
                 return false;
+                }
 
             default:
                 Debug.LogWarning($"[CardServerExecutor] Unknown cardId={cardId}");

@@ -204,6 +204,7 @@ public class ChessBoard : NetworkBehaviour
                     return new(x, y);
         return -Vector2Int.one;
     }
+
     #endregion
 
     #region Chess Piece Spawn & Position
@@ -327,6 +328,7 @@ public class ChessBoard : NetworkBehaviour
             if (targetPiece.IndestructibleActive.Value)
             {
                 GameManager.Instance?.ShowMessageToClient("This piece is in \"Indestructible\" state, cannot be captured.", 2f, senderClientId);
+                ReleseToStart(cp, previousPos.x, previousPos.y);
                 return;
             }
 

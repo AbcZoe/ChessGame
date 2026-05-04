@@ -116,7 +116,7 @@ public class CardHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
         cardView.Use();
 
         // ¥dµP¦^¦¬
-        CardViewCreator.Instance.RecycleCard(cardView);
+        CardSystem.Instance.UseCardServerRpc(cardView.CardInstanceId, cardView.OwnerTeam);
 
     }
 }

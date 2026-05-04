@@ -17,6 +17,12 @@ public class PlayerInput : MonoBehaviour
     private Vector2Int currentHoverdTile = -Vector2Int.one;
     private ChessPiece currentlyDragging;
 
+    [SerializeField] private float dragStartThresholdPixels = 18f; // 手機常用 12~24 可調
+
+    private bool touchPendingDrag;           // 已按下，但尚未超過門檻
+    private Vector2 touchStartScreenPos;     // 按下當下的螢幕座標
+    private ChessPiece touchPressedPiece;    // 按下那一瞬間點到的棋子（候選）
+
     [Header("Audio Data")]
     [SerializeField] private AudioData realsePieceAudioData;
 
@@ -90,12 +96,11 @@ public class PlayerInput : MonoBehaviour
 
         var touch = ts.primaryTouch;
 
-        // primaryTouch 沒在按就視為沒有互動
         bool isPressed = touch.press.isPressed;
         bool pressedThisFrame = touch.press.wasPressedThisFrame;
         bool releasedThisFrame = touch.press.wasReleasedThisFrame;
 
-        // 手機：不按住就不 hover，並且把 hover 清掉（避免一直亮著）
+        // 沒有互動：清 hover（手機通常不 hover）
         if (!isPressed && !pressedThisFrame)
         {
             ResetHover();
@@ -106,7 +111,6 @@ public class PlayerInput : MonoBehaviour
         if (pressedThisFrame)
             activeTouchId = touch.touchId.ReadValue();
 
-        // 如果 touchId 變了（例如多指或系統切換），忽略這一幀避免亂跳
         if (activeTouchId != -1 && touch.touchId.ReadValue() != activeTouchId)
             return;
 
@@ -122,16 +126,22 @@ public class PlayerInput : MonoBehaviour
         if (hitTile) HandleHover(hitPos);
         else ResetHover();
 
-        // 1) Press：開始拖曳 / 選卡牌目標
+        // ------------------------------------------------------------
+        // Press：先進入「待定拖曳」狀態，不立刻抓起來拖
+        // ------------------------------------------------------------
         if (pressedThisFrame)
         {
-            ChessPiece clicked = null;
+            touchStartScreenPos = screenPos;
+            touchPendingDrag = true;
+            touchPressedPiece = null;
 
+            ChessPiece clicked = null;
             if (Physics.Raycast(ray, out RaycastHit pieceHit, 100, pieceLayerMask))
                 clicked = pieceHit.collider.GetComponent<ChessPiece>();
             else if (hitTile)
                 clicked = FindPieceAtTile(hitPos);
 
+            // 卡牌選目標：點一下就結束（不走拖曳門檻）
             if (selectingCardTarget)
             {
                 if (clicked != null && clicked.Team.Value == PlayerTeam && !clicked.IsDead.Value)
@@ -143,32 +153,71 @@ public class PlayerInput : MonoBehaviour
                 {
                     UIManager.Instance?.ShowMessage("Please select one of our surviving pieces.", 1.5f);
                 }
+
+                // 結束這次觸控互動
+                touchPendingDrag = false;
+                touchPressedPiece = null;
+                activeTouchId = -1;
+                ResetHover();
                 return;
             }
 
-            HandleClickPiece(clicked);
+            // 先記住「按下時」點到的棋子，等超過門檻才真的 HandleClickPiece
+            touchPressedPiece = clicked;
         }
 
-        // 2) Drag：按住期間更新拖曳位置
-        if (completed && currentlyDragging != null && isPressed)
-            HandleDrag(ray);
-
-        // 3) Release：放開時落子（或回原位）
-        if (completed && currentlyDragging != null && releasedThisFrame)
+        // ------------------------------------------------------------
+        // Move / Hold：超過門檻才開始真正拖曳
+        // ------------------------------------------------------------
+        if (completed && isPressed)
         {
-            if (hitTile) HandleRelease(hitPos);
-            else HandleReleaseOnEmpty();
+            // 尚未開始拖，但有候選棋子：檢查是否超過門檻
+            if (touchPendingDrag && currentlyDragging == null && touchPressedPiece != null)
+            {
+                float dist = Vector2.Distance(screenPos, touchStartScreenPos);
+                if (dist >= dragStartThresholdPixels)
+                {
+                    // 真的開始拖曳：這裡才呼叫你原本的 HandleClickPiece（會做回合/隊伍檢查）
+                    HandleClickPiece(touchPressedPiece);
 
-            activeTouchId = -1;
-            ResetHover(); // 放開後清 hover，更像手機
-            return;
+                    // 不管是否成功抓起來（例如不是自己回合），都結束 pending
+                    touchPendingDrag = false;
+
+                    // 如果成功開始拖曳，立刻更新拖曳位置一次
+                    if (currentlyDragging != null)
+                        HandleDrag(ray);
+                }
+            }
+            // 已在拖曳中：持續拖
+            else if (currentlyDragging != null)
+            {
+                HandleDrag(ray);
+            }
         }
 
-        // 放開但沒有正在拖曳，也把 touchId 解鎖
+        // ------------------------------------------------------------
+        // Release：如果已在拖曳 -> 放開落子；如果還在門檻內 -> 當作點擊（目前不做落子）
+        // ------------------------------------------------------------
         if (releasedThisFrame)
         {
+            if (completed && currentlyDragging != null)
+            {
+                if (hitTile) HandleRelease(hitPos);
+                else HandleReleaseOnEmpty();
+            }
+            else
+            {
+                // 尚未超過門檻就放開：視為「點一下」
+                // 你目前的規則是用拖曳來移動，所以這裡不做 move。
+                // 如果你之後要「點一下顯示可走格/再點格子移動」，就從這裡延伸。
+            }
+
+            // 清狀態
+            touchPendingDrag = false;
+            touchPressedPiece = null;
             activeTouchId = -1;
             ResetHover();
+            return;
         }
     }
 
