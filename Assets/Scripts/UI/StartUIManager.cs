@@ -5,6 +5,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using Unity.Netcode;
 using System.Threading.Tasks;
+using System;
 
 public class StartUIManager : MonoBehaviour
 {
@@ -43,13 +44,20 @@ public class StartUIManager : MonoBehaviour
             UIEffect.Breathe(messageText.rectTransform, 1.1f, 1f);
         }
         if (MatchSystem.Instance != null)
+        {
+            MatchSystem.Instance.OnRoomCreated += UpdateRoomDataText;
             MatchSystem.Instance.OnLobbyListChanged += RefreshLobby;
+        }
+
     }
 
     private void OnDisable()
     {
         if (MatchSystem.Instance != null)
+        {
+            MatchSystem.Instance.OnRoomCreated -= UpdateRoomDataText;
             MatchSystem.Instance.OnLobbyListChanged -= RefreshLobby;
+        }
     }
 
     private void RefreshLobby()
@@ -63,6 +71,7 @@ public class StartUIManager : MonoBehaviour
         if (roomDataText != null)
             roomDataText.text = msg;
     }
+
     public void ClearRoomData()
     {
         if (roomDataText != null)
@@ -99,36 +108,71 @@ public class StartUIManager : MonoBehaviour
         if (StartPanel != null) StartPanel.SetActive(true);
     }
 
-    public void OnMatchClicked()
+    public void OnQuickMatchButton()
     {
         AudioManager.Instance.PlaySFX(clickUIAudioData); 
         ConnectingPanel.SetActive(true);
-        FindFirstObjectByType<MatchSystem>().QuickMatch();
+        _ = QuickMatchAsync();
     }
 
-    public void OnHostClicked()
+    private async Task QuickMatchAsync()
     {
+        try
+        {
+            await MatchSystem.Instance.QuickMatch();
+        }
+        catch (Exception e)
+        {
+            Debug.LogError(e);
+        }
+    }
+
+    public void OnHostButton()
+    {        
         AudioManager.Instance.PlaySFX(clickUIAudioData);
         ConnectingPanel.SetActive(true);
-        FindFirstObjectByType<MatchSystem>().HostGame();
+        _ = HostAsync();
     }
 
-    public void OnCancelMatchClicked()
+    private async Task HostAsync()
+    {
+        try
+        {
+            await MatchSystem.Instance.HostGame();
+        }
+        catch (Exception e)
+        {
+            Debug.LogError(e);
+        }
+    }
+
+    public void OnExitMatchButton()
     {
         AudioManager.Instance.PlaySFX(clickUIAudioData);
         ConnectingPanel.SetActive(false);
-        FindFirstObjectByType<MatchSystem>().ExitMatch();
+        ClearRoomData();
+        _ = ExitAsync();
     }
 
-    public void OnExitClicked()
+    private async Task ExitAsync()
     {
-        AudioManager.Instance.PlaySFX(clickUIAudioData);
-        FindFirstObjectByType<MatchSystem>().ExitMatch();
-#if UNITY_EDITOR
-        UnityEditor.EditorApplication.isPlaying = false;
-#else
-        Application.Quit();
-#endif
+        try
+        {
+            await MatchSystem.Instance.ExitMatch();
+        }
+        catch (Exception e)
+        {
+            Debug.LogError(e);
+        }
+    }
+
+    public void onExitButton()
+    {
+        #if UNITY_EDITOR
+                UnityEditor.EditorApplication.isPlaying = false;
+        #else
+                Application.Quit();
+        #endif
     }
 
 }

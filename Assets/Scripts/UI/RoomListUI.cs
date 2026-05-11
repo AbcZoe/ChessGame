@@ -3,6 +3,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using Unity.Services.Lobbies.Models;
 using System.Collections.Generic;
+using System;
+using System.Threading.Tasks;
 
 public class RoomListUI : MonoBehaviour
 {
@@ -52,7 +54,19 @@ public class RoomListUI : MonoBehaviour
 
     private void OnClickJoin(string lobbyId)
     {
-        MatchSystem.Instance.JoinLobbyById(lobbyId);
+        _ = JoinLobbyAsync(lobbyId);
+    }
+
+    private async Task JoinLobbyAsync(string lobbyId)
+    {
+        try
+        {
+            await MatchSystem.Instance.JoinLobbyById(lobbyId);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"Join Lobby Failed: {e}");
+        }
     }
 
 }

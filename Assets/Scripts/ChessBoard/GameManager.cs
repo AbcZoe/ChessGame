@@ -205,6 +205,7 @@ public class GameManager : NetworkBehaviour
     public void UpdateTurnUI()
     {
         UIManager.Instance?.ShowCurrentTurn(CurrentTurnTeam);
+        UIManager.Instance?.ShowRoundChange(1f);
     }
 
     public bool IsTeamTurn(int team)

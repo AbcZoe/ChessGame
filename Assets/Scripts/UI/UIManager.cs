@@ -4,6 +4,7 @@ using DG.Tweening;
 using UnityEngine.SceneManagement;
 using System;
 using UnityEngine.UI;
+using System.Threading.Tasks;
 
 public enum PromotionType
 {
@@ -24,6 +25,10 @@ public class UIManager : MonoBehaviour
     [Header("Persistent UI")]
     [SerializeField] private TMP_Text roundText;
     [SerializeField] private TMP_Text cardDescription;
+
+    [Header("RoundChange UI")]
+    [SerializeField] private GameObject RoundChangePanel;
+    [SerializeField] private TMP_Text roundText_inchange;
 
     [Header("Promotion UI")]
     [SerializeField] private GameObject PromotionPanel;
@@ -107,14 +112,47 @@ public class UIManager : MonoBehaviour
     public void ShowCurrentTurn(int team)
     {
         if (roundText == null) return;
-        roundText.text = $"Round: Team {team + 1}";
-        // 可加入動畫：UIEffect.Shake(roundText.rectTransform);
+        if (team == 0)
+        {
+            roundText.text = $"Round:Yellow Team";
+        }else if (team == 1)
+        {
+            roundText.text = $"Round:Purple Team";
+        }
     }
 
     public void HideRoundText()
     {
         if (roundText != null)
             roundText.text = "";
+    }
+
+    public void ShowRoundChange(float autoHideTime = 0f)
+    {
+        if (roundText_inchange == null || RoundChangePanel == null) return;
+
+        AudioManager.Instance.PlaySFX(messageUIAudioData);
+        roundText_inchange.text = roundText.text; // 顯示同樣的回合資訊
+        RoundChangePanel.SetActive(true);
+
+        UIEffect.Popup(RoundChangePanel);
+        if (autoHideTime > 0f)
+        {
+            DOVirtual.DelayedCall(autoHideTime, () =>
+            {
+                HideRoundChange();
+            });
+        }
+    }
+
+    public void HideRoundChange()
+    {
+        if (RoundChangePanel != null)
+        // 等淡出完成再關閉
+        DOVirtual.DelayedCall(0.3f, () =>
+        {
+            RoundChangePanel.SetActive(false);
+        });
     }
 
     // ===== 升變選擇 ===== 
@@ -159,7 +197,10 @@ public class UIManager : MonoBehaviour
         if(winnerTeam == 2)
             victoryText.text = $"Draw!!!";
         else
-            victoryText.text = $"Team {winnerTeam + 1} Wins!";
+            if (winnerTeam == 0)
+                victoryText.text = $"Yellow Team Wins!";
+            else if (winnerTeam == 1)
+                victoryText.text = $"Purple Team Wins!";
         UIEffect.Breathe(victoryText.rectTransform, scaleFactor: 1.1f, duration: 1f);
 
         // 顯示面板
@@ -189,6 +230,8 @@ public class UIManager : MonoBehaviour
     // ===== 卡片說明 =====
     public void ShowCardDescription(string name, string description)
     {
+        Debug.Log("Show Card");
+        Debug.Log(cardDescription);
         if (cardDescription != null)
         {
             string x = name +
@@ -261,27 +304,31 @@ public class UIManager : MonoBehaviour
     public void OnQuitButton()
     {
         AudioManager.Instance.PlaySFX(clickUIAudioData);
+
         Time.timeScale = 1f;
-        // 優先走網路通知（GameScene 會有 QuitNotifier）
+
         if (QuitNotifier.Instance != null)
         {
             QuitNotifier.Instance.NotifyQuitAndLeave();
             return;
         }
 
-        // 保底（例如不在 GameScene）
-        LocalReturnToMenu();
+        _ = ReturnToMenuAsync();
     }
-    public void LocalReturnToMenu()
+
+    public async Task ReturnToMenuAsync()
     {
         try
         {
             if (MatchSystem.Instance != null)
-                MatchSystem.Instance.ExitMatch();
+            {
+                await MatchSystem.Instance.ExitMatch();
+            }
         }
         catch (Exception e)
         {
-            Debug.LogWarning($"[UI] 返回主選單清理失敗（忽略）：{e.Message}");
+            Debug.LogWarning(
+                $"[UI] 返回主選單清理失敗：{e.Message}");
         }
 
         SceneManager.LoadScene("StartScene");
@@ -290,7 +337,7 @@ public class UIManager : MonoBehaviour
     {
         DOVirtual.DelayedCall(seconds, () =>
         {
-            LocalReturnToMenu();
+            _ = ReturnToMenuAsync();
         });
     }
     #endregion

@@ -10,23 +10,48 @@ using Unity.Services.Lobbies;
 using Unity.Services.Lobbies.Models;
 using Unity.Services.Relay;
 using Unity.Services.Relay.Models;
-using Unity.VisualScripting;
 using UnityEngine;
+
+public enum MatchState
+{
+    Idle,
+    Matching,
+    Hosting,
+    Joining,
+    InGame,
+    Disconnecting
+}
 
 public class MatchSystem : MonoBehaviour
 {
     public static MatchSystem Instance { get; private set; }
+
+    [Header("Relay")]
     [SerializeField] private bool useDtls = false;
+
+    [Header("Lobby Refresh")]
+    [SerializeField] private float refreshInterval = 3f;
+
     private Lobby currentLobby;
+
     private CancellationTokenSource heartbeatCts;
-
-    private bool isHostLobbyOwner; // 我是否為這個 lobby 的 owner（通常就是 host）
-    private bool isMatching = false;
-    private bool hasLoadedGameScene = false;
-
-    public event Action OnLobbyListChanged;
-    private List<Lobby> cachedLobbies = new();
     private CancellationTokenSource refreshCts;
+
+    private bool isHostLobbyOwner;
+    private bool hasLoadedGameScene;
+    private bool isCleaning;
+
+    public MatchState CurrentState { get; private set; } = MatchState.Idle;
+
+    public event Action<string> OnRoomCreated;
+    public event Action OnLobbyListChanged;
+    public event Action<MatchState> OnStateChanged;
+
+    private List<Lobby> cachedLobbies = new();
+
+    private bool isReady = false;
+
+    #region Unity Lifecycle
 
     private void Awake()
     {
@@ -35,95 +60,202 @@ public class MatchSystem : MonoBehaviour
             Destroy(gameObject);
             return;
         }
+
         Instance = this;
         DontDestroyOnLoad(gameObject);
     }
 
+
     async void Start()
     {
-        Debug.Log("[配對系統] 開始初始化 Unity Services...");
-
         try
         {
+            Debug.Log("[MatchSystem] Init Unity Services...");
+
             await UnityServices.InitializeAsync();
-            Debug.Log("[配對系統] Unity Services 初始化完成");
+
+            Debug.Log("[MatchSystem] Services Initialized");
 
             if (!AuthenticationService.Instance.IsSignedIn)
             {
-                Debug.Log("[配對系統] 尚未登入，開始匿名登入...");
+                Debug.Log("[MatchSystem] Signing in anonymously...");
                 await AuthenticationService.Instance.SignInAnonymouslyAsync();
-                Debug.Log($"[配對系統] 匿名登入成功，PlayerId={AuthenticationService.Instance.PlayerId}");
             }
-            else
-            {
-                Debug.Log($"[配對系統] 已登入，PlayerId={AuthenticationService.Instance.PlayerId}");
-            }
+
+            Debug.Log("[MatchSystem] Auth OK, PlayerId=" +
+                      AuthenticationService.Instance.PlayerId);
+
+            RegisterNetcodeCallbacks();
+            StartLobbyRefreshLoop();
+
+            isReady = true;
+            Debug.Log("[MatchSystem] READY");
         }
         catch (Exception e)
         {
-            Debug.LogError($"[配對系統] 初始化失敗：{e}");
+            Debug.LogError($"[MatchSystem] Init Failed: {e}");
         }
+    }
 
-        RegisterNetcodeCallbacks();
-        StartLobbyRefreshLoop();
+    private void OnDestroy()
+    {
+        StopLobbyHeartbeat();
+
+        refreshCts?.Cancel();
+        refreshCts?.Dispose();
+
+        UnregisterNetcodeCallbacks();
+    }
+
+    private void OnApplicationQuit()
+    {
+        // 不做 async cleanup
+        // 只停止 heartbeat 即可
+        StopLobbyHeartbeat();
+    }
+
+    #endregion
+
+    #region Initialize
+
+    private async Task InitializeServicesAsync()
+    {
+        try
+        {
+            Debug.Log("[MatchSystem] 初始化 Unity Services...");
+
+            await UnityServices.InitializeAsync();
+
+            if (!AuthenticationService.Instance.IsSignedIn)
+            {
+                await AuthenticationService.Instance.SignInAnonymouslyAsync();
+            }
+
+            Debug.Log($"[MatchSystem] Login Success: {AuthenticationService.Instance.PlayerId}");
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[MatchSystem] Initialize Failed: {e}");
+        }
+    }
+
+    #endregion
+
+    #region State
+
+    private void SetState(MatchState state)
+    {
+        CurrentState = state;
+
+        Debug.Log($"[MatchSystem] State => {state}");
+
+        OnStateChanged?.Invoke(state);
+    }
+
+    #endregion
+
+    #region Lobby Refresh
+
+    private void StartLobbyRefreshLoop()
+    {
+        refreshCts = new CancellationTokenSource();
+
+        _ = LobbyRefreshLoop(refreshCts.Token);
+    }
+
+    private async Task LobbyRefreshLoop(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                // 避免遊戲中還一直刷新 Lobby
+                if (CurrentState == MatchState.Idle ||
+                    CurrentState == MatchState.Matching)
+                {
+                    await RefreshLobby();
+                }
+
+                await Task.Delay(
+                    TimeSpan.FromSeconds(refreshInterval), ct);
+            }
+            catch (TaskCanceledException)
+            {
+                break;
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[MatchSystem] LobbyRefreshLoop Error: {e.Message}");
+            }
+        }
     }
 
     private async Task RefreshLobby()
     {
-        var result = await LobbyService.Instance.QueryLobbiesAsync(new QueryLobbiesOptions
+        try
         {
-            Count = 20
-        });
+            var result = await LobbyService.Instance.QueryLobbiesAsync(
+                new QueryLobbiesOptions
+                {
+                    Count = 20,
+                    Filters = new List<QueryFilter>
+                    {
+                        new QueryFilter(
+                            QueryFilter.FieldOptions.AvailableSlots,
+                            "0",
+                            QueryFilter.OpOptions.GT),
 
-        // 如果內容沒變 → 不通知 UI
-        if (IsSameList(result.Results, cachedLobbies))
-            return;
+                        new QueryFilter(
+                            QueryFilter.FieldOptions.S1,
+                            "waiting",
+                            QueryFilter.OpOptions.EQ)
+                    }
+                });
 
-        cachedLobbies = result.Results;
-        OnLobbyListChanged?.Invoke();
-    }
-    public List<Lobby> GetCachedLobbies()
-    {
-        return cachedLobbies;
-    }
-    void StartLobbyRefreshLoop()
-    {
-        refreshCts = new CancellationTokenSource();
-        _ = LobbyRefreshLoop(refreshCts.Token);
-    }
+            if (IsSameLobbyList(result.Results, cachedLobbies))
+                return;
 
-    async Task LobbyRefreshLoop(CancellationToken ct)
-    {
-        while (!ct.IsCancellationRequested)
+            cachedLobbies = result.Results;
+
+            OnLobbyListChanged?.Invoke();
+        }
+        catch (Exception e)
         {
-            await RefreshLobby();
-
-            try
-            {
-                await Task.Delay(3000, ct); // 3秒一次（建議）
-            }
-            catch { }
+            Debug.LogWarning($"[MatchSystem] RefreshLobby Failed: {e.Message}");
         }
     }
-    private bool IsSameList(List<Lobby> a, List<Lobby> b)
+
+    private bool IsSameLobbyList(List<Lobby> a, List<Lobby> b)
     {
-        if (a.Count != b.Count) return false;
+        if (a.Count != b.Count)
+            return false;
 
         for (int i = 0; i < a.Count; i++)
         {
             if (a[i].Id != b[i].Id ||
                 a[i].AvailableSlots != b[i].AvailableSlots)
+            {
                 return false;
+            }
         }
 
         return true;
     }
 
-    void RegisterNetcodeCallbacks()
+    public List<Lobby> GetCachedLobbies()
+    {
+        return cachedLobbies;
+    }
+
+    #endregion
+
+    #region Netcode
+
+    private void RegisterNetcodeCallbacks()
     {
         if (NetworkManager.Singleton == null)
         {
-            Debug.LogWarning("[配對系統] 找不到 NetworkManager.Singleton，無法註冊連線事件（請確認場景中有 NetworkManager）");
+            Debug.LogWarning("[MatchSystem] NetworkManager.Singleton Missing");
             return;
         }
 
@@ -132,67 +264,81 @@ public class MatchSystem : MonoBehaviour
 
         NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
         NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
-
-        Debug.Log("[配對系統] 已註冊 NGO 連線事件 (OnClientConnected/OnClientDisconnected)");
     }
 
-    private void OnClientConnected(ulong clientId)
+    private void UnregisterNetcodeCallbacks()
     {
-        // 這個 callback 在 Host/Client 都會觸發
-        if (NetworkManager.Singleton.IsServer)
-        {
-            Debug.Log($"[配對系統] 有玩家連線成功 (Server視角) ClientId={clientId}，目前連線數={NetworkManager.Singleton.ConnectedClients.Count}");
-        }
-        else if (NetworkManager.Singleton.IsClient && clientId == NetworkManager.Singleton.LocalClientId)
-        {
-            Debug.Log($"[配對系統] 我已連線到 Host 成功 (Client視角) LocalClientId={NetworkManager.Singleton.LocalClientId}");
-        }
-        else
-        {
-            Debug.Log($"[配對系統] OnClientConnected 觸發 ClientId={clientId}");
-        }
+        if (NetworkManager.Singleton == null)
+            return;
 
+        NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
+        NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
+    }
+
+    private async void OnClientConnected(ulong clientId)
+    {
         if (NetworkManager.Singleton.IsServer)
         {
-            int count = NetworkManager.Singleton.ConnectedClients.Count;
-            Debug.Log($"[配對系統] (Host) 目前連線人數={count}/2");
+            int count =
+                NetworkManager.Singleton.ConnectedClients.Count;
+
+            Debug.Log($"[MatchSystem] Client Connected: {clientId}");
+            Debug.Log($"[MatchSystem] Player Count: {count}/2");
 
             if (!hasLoadedGameScene && count == 2)
             {
-                hasLoadedGameScene = true; 
-                Debug.Log("[配對系統] (Host) 配對成功(2/2)，開始切換到 GameScene...");
+                hasLoadedGameScene = true;
 
-                // 讓所有 Client 跟著一起切
-                NetworkManager.Singleton.SceneManager.LoadScene("GameScene", UnityEngine.SceneManagement.LoadSceneMode.Single);
+                SetState(MatchState.InGame);
+
+                await SetLobbyState("ingame");
+
+                Debug.Log("[MatchSystem] Loading GameScene...");
+
+                NetworkManager.Singleton.SceneManager.LoadScene(
+                    "GameScene",
+                    UnityEngine.SceneManagement.LoadSceneMode.Single);
             }
         }
     }
 
     private void OnClientDisconnected(ulong clientId)
     {
-        Debug.LogWarning($"[配對系統] 玩家斷線 ClientId={clientId}");
+        Debug.LogWarning($"[MatchSystem] Client Disconnected: {clientId}");
 
-        // 如果我是 client 且自己被斷線，可視需求自動清理
         if (NetworkManager.Singleton != null &&
             NetworkManager.Singleton.IsClient &&
             clientId == NetworkManager.Singleton.LocalClientId)
         {
-            Debug.LogWarning("[配對系統] 我被斷線了，將嘗試清理 Lobby/Relay...");
             _ = DisconnectAndCleanup();
         }
     }
 
-    // 一鍵 QuickMatch（自動配對）
-    public async void QuickMatch()
+    #endregion
+
+    #region Quick Match
+
+    public async Task QuickMatch()
     {
+        if (!isReady)
+        {
+            Debug.LogWarning("[QuickMatch] Not ready yet");
+            return;
+        }
+
+        if (CurrentState != MatchState.Idle)
+        {
+            Debug.LogWarning($"[MatchSystem] Current State: {CurrentState}");
+            return;
+        }
+
+        SetState(MatchState.Matching);
         if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
         {
             Debug.LogWarning("[配對系統] 偵測到目前仍在連線中，先執行清理再重新配對...");
             await DisconnectAndCleanup();
         }
 
-        if (isMatching) { Debug.LogWarning("[配對系統] 配對中，請稍候"); return; }
-        isMatching = true;
         try
         {
             Debug.Log("[配對系統] 開始 QuickMatch：查詢可加入房間...");
@@ -239,67 +385,142 @@ public class MatchSystem : MonoBehaviour
         {
             Debug.LogError($"[配對系統] QuickMatch 失敗：{e}");
         }
-        finally { isMatching = false; }
     }
 
-    // 建立 Lobby + Relay（Host）
-    async Task CreateLobbyAndHost()
+    #endregion
+
+    #region Host
+
+    public async Task HostGame()
     {
-        Debug.Log("[配對系統] Host 流程：建立 Relay Allocation...");
+        if (CurrentState != MatchState.Idle)
+            return;
 
-        Allocation allocation = await RelayService.Instance.CreateAllocationAsync(1);
-        Debug.Log("[配對系統] Relay Allocation 建立完成");
+        try
+        {
+            SetState(MatchState.Hosting);
 
-        string joinCode = await RelayService.Instance.GetJoinCodeAsync(allocation.AllocationId);
-        Debug.Log($"[配對系統] Relay JoinCode 取得完成：{joinCode}");
+            await DisconnectAndCleanup();
+
+            await CreateLobbyAndHost();
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[MatchSystem] HostGame Failed: {e}");
+
+            SetState(MatchState.Idle);
+        }
+    }
+
+    private async Task CreateLobbyAndHost()
+    {
+        Allocation allocation =
+            await WithTimeout(
+                RelayService.Instance.CreateAllocationAsync(1));
+
+        string joinCode =
+            await WithTimeout(
+                RelayService.Instance.GetJoinCodeAsync(
+                    allocation.AllocationId));
 
         var options = new CreateLobbyOptions
         {
             Data = new Dictionary<string, DataObject>
             {
-                { "joinCode", new DataObject(DataObject.VisibilityOptions.Member, joinCode) }
+                {
+                    "joinCode",
+                    new DataObject(
+                        DataObject.VisibilityOptions.Member,
+                        joinCode)
+                },
+                {
+                    "state",
+                    new DataObject(
+                        DataObject.VisibilityOptions.Public,
+                        "waiting",
+                        index: DataObject.IndexOptions.S1)
+                }
             }
         };
 
-        string playerId = AuthenticationService.Instance.PlayerId;
-        string shortId = playerId.Substring(0, 4);
-        string roomName = $"Room_{shortId}";
+        string playerId =
+            AuthenticationService.Instance.PlayerId;
 
-        currentLobby = await LobbyService.Instance.CreateLobbyAsync(roomName, 2, options);
-        OnLobbyListChanged?.Invoke(); // 通知 UI 刷新房間列表（如果有的話）
+        string roomName =
+            $"Room_{playerId.Substring(0, 4)}";
+
+        currentLobby =
+            await LobbyService.Instance.CreateLobbyAsync(
+                roomName,
+                2,
+                options);
+
+        OnRoomCreated?.Invoke(
+            $"Room: {currentLobby.Name}\n" +
+            $"ID: {currentLobby.Id}\n" +
+            $"Players: {currentLobby.Players.Count}/2\n" +
+            $"State: waiting");
+
         isHostLobbyOwner = true;
 
-        var ui = FindFirstObjectByType<StartUIManager>();
-
-        if (ui != null)
-        {
-            ui.UpdateRoomDataText(
-                $"Room Created\nName: {currentLobby.Name}\nID: {currentLobby.Id}"
-            );
-        }
-        Debug.Log($"[配對系統] Lobby 建立成功 LobbyId={currentLobby.Id} Name={currentLobby.Name} OwnerId={currentLobby.HostId}");
-
-        // Host needs heartbeat to keep lobby alive
         StartLobbyHeartbeat(currentLobby.Id);
-        Debug.Log("[配對系統] 已啟動 Lobby Heartbeat（房間保活）");
 
         SetupHostRelay(allocation);
-        Debug.Log("[配對系統] Host Relay 設定完成，準備 StartHost()...");
 
         bool ok = NetworkManager.Singleton.StartHost();
-        Debug.Log(ok
-            ? "[配對系統] StartHost() 呼叫成功，等待 Client 連線..."
-            : "[配對系統] StartHost() 呼叫失敗（請確認 NetworkManager / Transport 設定）");
+
+        if (!ok)
+        {
+            throw new Exception("StartHost Failed");
+        }
+
+        Debug.Log("[MatchSystem] Host Started");
     }
 
-    // 加入 Relay（Client）
+    #endregion
+
+    #region Client
+
+    public async Task JoinLobbyById(string lobbyId)
+    {
+        try
+        {
+            var lobby =
+                await LobbyService.Instance.JoinLobbyByIdAsync(lobbyId);
+
+            await JoinLobby(lobby);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[MatchSystem] JoinLobbyById Failed: {e}");
+        }
+    }
+
+    private async Task JoinLobby(Lobby lobby)
+    {
+        if (lobby.Data == null ||
+            !lobby.Data.ContainsKey("joinCode") ||
+            string.IsNullOrEmpty(lobby.Data["joinCode"].Value))
+        {
+            throw new Exception("Lobby Missing JoinCode (not ready or invalid)");
+        }
+
+        string joinCode = lobby.Data["joinCode"].Value;
+
+        Debug.Log($"[MatchSystem] JoinCode OK: {joinCode}");
+
+        await JoinRelay(joinCode);
+    }
+
     public async Task JoinRelay(string joinCode)
     {
-        Debug.Log("[配對系統] Client 流程：JoinAllocation(joinCode)...");
-        JoinAllocation allocation = await RelayService.Instance.JoinAllocationAsync(joinCode);
-        Debug.Log("[配對系統] JoinAllocation 成功，設定 UnityTransport Relay 資料...");
+        JoinAllocation allocation =
+            await WithTimeout(
+                RelayService.Instance.JoinAllocationAsync(joinCode));
 
-        var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
+        var transport =
+            NetworkManager.Singleton.GetComponent<UnityTransport>();
+
         transport.SetRelayServerData(
             allocation.RelayServer.IpV4,
             (ushort)allocation.RelayServer.Port,
@@ -307,40 +528,25 @@ public class MatchSystem : MonoBehaviour
             allocation.Key,
             allocation.ConnectionData,
             allocation.HostConnectionData,
-            useDtls
-        );
+            useDtls);
 
-        Debug.Log("[配對系統] Relay 資料設定完成，準備 StartClient()...");
         bool ok = NetworkManager.Singleton.StartClient();
-        Debug.Log(ok
-            ? "[配對系統] StartClient() 呼叫成功，等待連線成功事件..."
-            : "[配對系統] StartClient() 呼叫失敗（請確認 NetworkManager / Transport 設定）");
-    }
 
-    public async void JoinLobbyById(string lobbyId)
-    {
-        try
+        if (!ok)
         {
-            Debug.Log($"[配對系統] 嘗試手動加入 Lobby: {lobbyId}");
-
-            currentLobby = await LobbyService.Instance.JoinLobbyByIdAsync(lobbyId);
-            isHostLobbyOwner = false;
-
-            string joinCode = currentLobby.Data["joinCode"].Value;
-
-            await JoinRelay(joinCode);
-            OnLobbyListChanged?.Invoke(); // 通知 UI 刷新房間列表（如果有的話）
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"[配對系統] 加入房間失敗: {e}");
+            throw new Exception("StartClient Failed");
         }
     }
 
-    // 設定 Host Relay
-    void SetupHostRelay(Allocation allocation)
+    #endregion
+
+    #region Relay
+
+    private void SetupHostRelay(Allocation allocation)
     {
-        var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
+        var transport =
+            NetworkManager.Singleton.GetComponent<UnityTransport>();
+
         transport.SetRelayServerData(
             allocation.RelayServer.IpV4,
             (ushort)allocation.RelayServer.Port,
@@ -348,134 +554,192 @@ public class MatchSystem : MonoBehaviour
             allocation.Key,
             allocation.ConnectionData,
             allocation.ConnectionData,
-            useDtls
-        );
+            useDtls);
     }
 
-    void StartLobbyHeartbeat(string lobbyId)
+    #endregion
+
+    #region Heartbeat
+
+    private void StartLobbyHeartbeat(string lobbyId)
     {
         StopLobbyHeartbeat();
+
         heartbeatCts = new CancellationTokenSource();
+
         _ = HeartbeatLoop(lobbyId, heartbeatCts.Token);
     }
 
-    public async void HostGame()
-    {
-        try
-        {
-            Debug.Log("[配對系統] 手動建立房間...");
-
-            await DisconnectAndCleanup(); // 保險
-
-            await CreateLobbyAndHost();
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"[配對系統] Host 失敗: {e}");
-        }
-    }
-
-    async Task HeartbeatLoop(string lobbyId, CancellationToken ct)
+    private async Task HeartbeatLoop(
+        string lobbyId,
+        CancellationToken ct)
     {
         while (!ct.IsCancellationRequested)
         {
             try
             {
-                await LobbyService.Instance.SendHeartbeatPingAsync(lobbyId);
-                Debug.Log("[配對系統] Heartbeat：Lobby 保活成功");
+                await LobbyService.Instance
+                    .SendHeartbeatPingAsync(lobbyId);
+
+                await Task.Delay(
+                    TimeSpan.FromSeconds(15),
+                    ct);
+            }
+            catch (TaskCanceledException)
+            {
+                break;
             }
             catch (Exception e)
             {
-                Debug.LogWarning($"[配對系統] Heartbeat 失敗：{e.Message}");
+                Debug.LogWarning($"[MatchSystem] Heartbeat Failed: {e.Message}");
             }
-
-            try { await Task.Delay(TimeSpan.FromSeconds(15), ct); }
-            catch { }
         }
     }
 
-    void StopLobbyHeartbeat()
+    private void StopLobbyHeartbeat()
     {
-        if (heartbeatCts != null)
-        {
-            heartbeatCts.Cancel();
-            heartbeatCts.Dispose();
-            heartbeatCts = null;
-        }
+        heartbeatCts?.Cancel();
+        heartbeatCts?.Dispose();
+        heartbeatCts = null;
     }
 
-    // ====== 退出連線 + 清理 Lobby（給 UI 按鈕呼叫）======
-    public async void ExitMatch()
+    #endregion
+
+    #region Cleanup
+
+    public async Task ExitMatch()
     {
         await DisconnectAndCleanup();
     }
 
-    // 退出連線，並刪除/離開 Lobby（避免「沒使用的房間」殘留）
     public async Task DisconnectAndCleanup()
     {
-        Debug.Log("[配對系統] 開始退出連線與清理...");
+        if (isCleaning)
+        {
+            Debug.LogWarning("[MatchSystem] Already Cleaning");
+            return;
+        }
 
-        // 1) 停止 heartbeat
-        StopLobbyHeartbeat();
+        isCleaning = true;
 
-        // 2) 先停止 NGO
+        SetState(MatchState.Disconnecting);
+
         try
         {
-            if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
-            {
-                Debug.Log("[配對系統] 正在關閉 NGO 連線 (NetworkManager.Shutdown)...");
-                NetworkManager.Singleton.Shutdown();
-                Debug.Log("[配對系統] NGO 已呼叫 Shutdown()");
-            }
-        }
-        catch (Exception e)
-        {
-            Debug.LogWarning($"[配對系統] Shutdown NGO 失敗：{e.Message}");
-        }
+            StopLobbyHeartbeat();
 
-        // 3) 清 Lobby：Host 刪除、Client 離開
-        try
-        {
-            if (currentLobby != null)
+            try
             {
-                string lobbyId = currentLobby.Id;
-                string playerId = AuthenticationService.Instance.PlayerId;
-
-                if (isHostLobbyOwner)
+                if (NetworkManager.Singleton != null &&
+                    NetworkManager.Singleton.IsListening)
                 {
-                    Debug.Log($"[配對系統] 我是 Host/Owner，準備刪除 Lobby：{lobbyId}");
-                    await LobbyService.Instance.DeleteLobbyAsync(lobbyId);
-                    Debug.Log("[配對系統] Lobby 已刪除（避免殘留無用房間）");
+                    NetworkManager.Singleton.Shutdown();
                 }
-                else
-                {
-                    Debug.Log($"[配對系統] 我是 Client，準備離開 Lobby：{lobbyId}");
-                    await LobbyService.Instance.RemovePlayerAsync(lobbyId, playerId);
-                    Debug.Log("[配對系統] 已離開 Lobby");
-                }
-
-                currentLobby = null;
-                OnLobbyListChanged?.Invoke(); // 通知 UI 刷新房間列表（如果有的話）
-                isHostLobbyOwner = false;
             }
-            else
+            catch (Exception e)
             {
-                Debug.Log("[配對系統] currentLobby 為 null，無需清理 Lobby");
+                Debug.LogWarning($"[MatchSystem] Shutdown Failed: {e.Message}");
             }
-        }
-        catch (Exception e)
-        {
-            Debug.LogWarning($"[配對系統] 清理 Lobby 失敗（忽略）：{e.Message}");
-        }
-        hasLoadedGameScene = false;
-        Debug.Log("[配對系統] 退出/清理流程完成");
 
-        FindFirstObjectByType<StartUIManager>()?.ClearRoomData();
+            try
+            {
+                if (currentLobby != null)
+                {
+                    string lobbyId = currentLobby.Id;
+
+                    string playerId =
+                        AuthenticationService.Instance.PlayerId;
+
+                    if (isHostLobbyOwner)
+                    {
+                        await LobbyService.Instance
+                            .DeleteLobbyAsync(lobbyId);
+                    }
+                    else
+                    {
+                        await LobbyService.Instance
+                            .RemovePlayerAsync(lobbyId, playerId);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[MatchSystem] Lobby Cleanup Failed: {e.Message}");
+            }
+
+            currentLobby = null;
+
+            isHostLobbyOwner = false;
+
+            hasLoadedGameScene = false;
+
+            cachedLobbies.Clear();
+
+            OnLobbyListChanged?.Invoke();
+
+            Debug.Log("[MatchSystem] Cleanup Complete");
+        }
+        finally
+        {
+            isCleaning = false;
+
+            SetState(MatchState.Idle);
+        }
     }
 
-    private void OnApplicationQuit()
+    #endregion
+
+    #region Lobby State
+
+    private async Task SetLobbyState(string state)
     {
-        // 這裡不要 await，做 best-effort
-        _ = DisconnectAndCleanup();
+        try
+        {
+            if (currentLobby == null)
+                return;
+
+            await LobbyService.Instance.UpdateLobbyAsync(
+                currentLobby.Id,
+                new UpdateLobbyOptions
+                {
+                    Data = new Dictionary<string, DataObject>
+                    {
+                        {
+                            "state",
+                            new DataObject(
+                                DataObject.VisibilityOptions.Public,
+                                state,
+                                index: DataObject.IndexOptions.S1)
+                        }
+                    }
+                });
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"[MatchSystem] SetLobbyState Failed: {e.Message}");
+        }
     }
+
+    #endregion
+
+    #region Utility
+
+    private async Task<T> WithTimeout<T>(
+        Task<T> task,
+        int timeoutMs = 10000)
+    {
+        var timeoutTask = Task.Delay(timeoutMs);
+
+        var completed =
+            await Task.WhenAny(task, timeoutTask);
+
+        if (completed == timeoutTask)
+        {
+            throw new TimeoutException();
+        }
+
+        return await task;
+    }
+
+    #endregion
 }

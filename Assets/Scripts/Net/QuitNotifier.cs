@@ -1,3 +1,5 @@
+using System;
+using System.Threading.Tasks;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -24,36 +26,44 @@ public class QuitNotifier : NetworkBehaviour
             NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
     }
 
-    public void NotifyQuitAndLeave()
+    public async void NotifyQuitAndLeave()
     {
         if (leaving) return;
         leaving = true;
 
-        // 不在連線中就直接回主選單
-        if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsListening)
+        try
         {
-            UIManager.Instance?.LocalReturnToMenu();
-            return;
+            if (NetworkManager.Singleton == null ||
+                !NetworkManager.Singleton.IsListening)
+            {
+                UIManager.Instance?.ReturnToMenuAsync();
+                return;
+            }
+
+            if (IsServer)
+            {
+                HostQuitRpc();
+            }
+            else
+            {
+                ClientQuitRpc();
+            }
+
+            // 等一點點 RPC flush（比 Invoke 更安全）
+            await Task.Delay(200);
+
+            // 等 MatchSystem 真正清理完
+            if (MatchSystem.Instance != null)
+            {
+                await MatchSystem.Instance.ExitMatch();
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"Quit Error: {e.Message}");
         }
 
-        if (IsServer)
-        {
-            // Host 按 Quit：通知 Client 顯示訊息
-            HostQuitRpc();
-        }
-        else
-        {
-            // Client 按 Quit：通知 Host 顯示訊息
-            ClientQuitRpc();
-        }
-
-        // 自己一定要離開：不要把「退出」依賴在對方是否收到 RPC
-        Invoke(nameof(LeaveNow), 0.2f);
-    }
-
-    private void LeaveNow()
-    {
-        UIManager.Instance?.LocalReturnToMenu();
+        UIManager.Instance?.ReturnToMenuAsync();
     }
 
     private void OnClientDisconnected(ulong clientId)
