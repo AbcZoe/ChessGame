@@ -11,6 +11,7 @@ using Unity.Services.Lobbies.Models;
 using Unity.Services.Relay;
 using Unity.Services.Relay.Models;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public enum MatchState
 {
@@ -65,37 +66,11 @@ public class MatchSystem : MonoBehaviour
         DontDestroyOnLoad(gameObject);
     }
 
-
-    async void Start()
+    private async void Start()
     {
-        try
-        {
-            Debug.Log("[MatchSystem] Init Unity Services...");
-
-            await UnityServices.InitializeAsync();
-
-            Debug.Log("[MatchSystem] Services Initialized");
-
-            if (!AuthenticationService.Instance.IsSignedIn)
-            {
-                Debug.Log("[MatchSystem] Signing in anonymously...");
-                await AuthenticationService.Instance.SignInAnonymouslyAsync();
-            }
-
-            Debug.Log("[MatchSystem] Auth OK, PlayerId=" +
-                      AuthenticationService.Instance.PlayerId);
-
-            RegisterNetcodeCallbacks();
-            StartLobbyRefreshLoop();
-
-            isReady = true;
-            Debug.Log("[MatchSystem] READY");
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"[MatchSystem] Init Failed: {e}");
-        }
+        await InitializeAndSetReady();
     }
+
 
     private void OnDestroy()
     {
@@ -118,24 +93,34 @@ public class MatchSystem : MonoBehaviour
 
     #region Initialize
 
-    private async Task InitializeServicesAsync()
+    private bool startSceneLoaded;
+
+    private async Task InitializeAndSetReady()
     {
         try
         {
-            Debug.Log("[MatchSystem] ªì©l¤Æ Unity Services...");
-
             await UnityServices.InitializeAsync();
 
             if (!AuthenticationService.Instance.IsSignedIn)
-            {
                 await AuthenticationService.Instance.SignInAnonymouslyAsync();
-            }
 
-            Debug.Log($"[MatchSystem] Login Success: {AuthenticationService.Instance.PlayerId}");
+            RegisterNetcodeCallbacks();
+
+            if (refreshCts == null)
+                StartLobbyRefreshLoop();
+
+            isReady = true;
+
+            if (!startSceneLoaded)
+            {
+                startSceneLoaded = true;
+                SceneManager.LoadScene("StartScene");
+            }
         }
         catch (Exception e)
         {
-            Debug.LogError($"[MatchSystem] Initialize Failed: {e}");
+            Debug.LogError($"[MatchSystem] Init Failed: {e}");
+            isReady = false;
         }
     }
 
@@ -326,6 +311,18 @@ public class MatchSystem : MonoBehaviour
             return;
         }
 
+        if (UnityServices.State != ServicesInitializationState.Initialized)
+        {
+            Debug.LogWarning("[QuickMatch] Services not initialized. Re-initializing...");
+            await UnityServices.InitializeAsync();
+        }
+
+        if (!AuthenticationService.Instance.IsSignedIn)
+        {
+            Debug.LogWarning("[QuickMatch] Not signed in. Signing in...");
+            await AuthenticationService.Instance.SignInAnonymouslyAsync();
+        }
+
         if (CurrentState != MatchState.Idle)
         {
             Debug.LogWarning($"[MatchSystem] Current State: {CurrentState}");
@@ -349,6 +346,7 @@ public class MatchSystem : MonoBehaviour
                 Filters = new List<QueryFilter>
                 {
                     new QueryFilter(QueryFilter.FieldOptions.AvailableSlots, "0", QueryFilter.OpOptions.GT),
+                    new QueryFilter(QueryFilter.FieldOptions.S1, "waiting", QueryFilter.OpOptions.EQ),
                 }
             };
 

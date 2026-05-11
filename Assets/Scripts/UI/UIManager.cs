@@ -119,6 +119,8 @@ public class UIManager : MonoBehaviour
         {
             roundText.text = $"Round:Purple Team";
         }
+
+        ShowRoundChange(1f);
     }
 
     public void HideRoundText()
