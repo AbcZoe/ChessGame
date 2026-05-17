@@ -1,0 +1,275 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9620f8c34305754d8cc9a7e49e852d9, type: 3}
+  m_Name: UI_Text_en
+  m_EditorClassIdentifier: Unity.Localization::UnityEngine.Localization.Tables.StringTable
+  m_LocaleId:
+    m_Code: en
+  m_SharedData: {fileID: 11400000, guid: 639a46b4b2256db4f9e44c279ba7d7ae, type: 2}
+  m_Metadata:
+    m_Items: []
+  m_TableData:
+  - m_Id: 172431114240
+    m_Localized: ChessGame
+    m_Metadata:
+      m_Items: []
+  - m_Id: 806911868928
+    m_Localized: A special chess game
+    m_Metadata:
+      m_Items: []
+  - m_Id: 2747331117056
+    m_Localized: TAP SCREEN TO START
+    m_Metadata:
+      m_Items: []
+  - m_Id: 10538426957824
+    m_Localized: Settings
+    m_Metadata:
+      m_Items: []
+  - m_Id: 10638016512000
+    m_Localized: Exit
+    m_Metadata:
+      m_Items: []
+  - m_Id: 10876634660864
+    m_Localized: QuickMatch
+    m_Metadata:
+      m_Items: []
+  - m_Id: 10942854332416
+    m_Localized: CreateRoom
+    m_Metadata:
+      m_Items: []
+  - m_Id: 11000404377600
+    m_Localized: Connecting and Matching...
+    m_Metadata:
+      m_Items: []
+  - m_Id: 11203144450048
+    m_Localized: CancelMatch
+    m_Metadata:
+      m_Items: []
+  - m_Id: 11752841543680
+    m_Localized: Audio
+    m_Metadata:
+      m_Items: []
+  - m_Id: 11926598975488
+    m_Localized: Volume
+    m_Metadata:
+      m_Items: []
+  - m_Id: 12015824404480
+    m_Localized: BGM Volume
+    m_Metadata:
+      m_Items: []
+  - m_Id: 12174352318464
+    m_Localized: SFX Volume
+    m_Metadata:
+      m_Items: []
+  - m_Id: 12276320043008
+    m_Localized: Back
+    m_Metadata:
+      m_Items: []
+  - m_Id: 12834296692736
+    m_Localized: Join
+    m_Metadata:
+      m_Items: []
+  - m_Id: 15787111874560
+    m_Localized: Pause
+    m_Metadata:
+      m_Items: []
+  - m_Id: 16238016331776
+    m_Localized: 'RoundCahange:'
+    m_Metadata:
+      m_Items: []
+  - m_Id: 16566065430528
+    m_Localized: Please select which piece you want to promote to.
+    m_Metadata:
+      m_Items: []
+  - m_Id: 16841941581824
+    m_Localized: Queen
+    m_Metadata:
+      m_Items: []
+  - m_Id: 16876242599936
+    m_Localized: Rook
+    m_Metadata:
+      m_Items: []
+  - m_Id: 16905544007680
+    m_Localized: Bishop
+    m_Metadata:
+      m_Items: []
+  - m_Id: 17004231786496
+    m_Localized: Knight
+    m_Metadata:
+      m_Items: []
+  - m_Id: 17141490384896
+    m_Localized: Resume
+    m_Metadata:
+      m_Items: []
+  - m_Id: 17171123142656
+    m_Localized: Quit
+    m_Metadata:
+      m_Items: []
+  - m_Id: 17346524741632
+    m_Localized: Reset
+    m_Metadata:
+      m_Items: []
+  - m_Id: 22935359324160
+    m_Localized: 'Round: Yellow Team'
+    m_Metadata:
+      m_Items: []
+  - m_Id: 22936948965376
+    m_Localized: 'Round: Purple Team'
+    m_Metadata:
+      m_Items: []
+  - m_Id: 22938559578112
+    m_Localized: Yellow Team Wins!
+    m_Metadata:
+      m_Items: []
+  - m_Id: 22940044361728
+    m_Localized: Purple Team Wins!
+    m_Metadata:
+      m_Items: []
+  - m_Id: 22941575282688
+    m_Localized: Draw!!!
+    m_Metadata:
+      m_Items: []
+  - m_Id: 25767357579264
+    m_Localized: Yellow Team, please select a piece as your King!
+    m_Metadata:
+      m_Items: []
+  - m_Id: 25897561358336
+    m_Localized: Purple Team, please select a piece as your King!
+    m_Metadata:
+      m_Items: []
+  - m_Id: 27675749122048
+    m_Localized: Both teams have chosen their Kings. The game starts!
+    m_Metadata:
+      m_Items: []
+  - m_Id: 29396126793728
+    m_Localized: DoubleAction
+    m_Metadata:
+      m_Items: []
+  - m_Id: 29438510235648
+    m_Localized: You can act twice.
+    m_Metadata:
+      m_Items: []
+  - m_Id: 29625710411776
+    m_Localized: Make one of our designated pieces unable to be captured for one
+      turn.
+    m_Metadata:
+      m_Items: []
+  - m_Id: 29622988308480
+    m_Localized: Indestructible
+    m_Metadata:
+      m_Items: []
+  - m_Id: 29743998173184
+    m_Localized: MutualDestruction
+    m_Metadata:
+      m_Items: []
+  - m_Id: 29750662922240
+    m_Localized: If a player's designated piece is captured within one turn, the
+      enemy piece that captured it will also be captured.
+    m_Metadata:
+      m_Items: []
+  - m_Id: 29907664109568
+    m_Localized: NothingHappend
+    m_Metadata:
+      m_Items: []
+  - m_Id: 29986655436800
+    m_Localized: Nothing happend ...
+    m_Metadata:
+      m_Items: []
+  - m_Id: 30086320488448
+    m_Localized: You can reset your king piece.
+    m_Metadata:
+      m_Items: []
+  - m_Id: 30045778345984
+    m_Localized: ResetKing
+    m_Metadata:
+      m_Items: []
+  - m_Id: 31833722060800
+    m_Localized: You used the card \"Reset King\".
+    m_Metadata:
+      m_Items: []
+  - m_Id: 32530563727360
+    m_Localized: The enemy used the card \"Reset King\".
+    m_Metadata:
+      m_Items: []
+  - m_Id: 32739943383040
+    m_Localized: You used the card \"Nothing Happend\".
+    m_Metadata:
+      m_Items: []
+  - m_Id: 32796851699712
+    m_Localized: The enemy used the card \"Nothing Happend\".
+    m_Metadata:
+      m_Items: []
+  - m_Id: 32860605120512
+    m_Localized: You used the card \"Mutual Destruction\".
+    m_Metadata:
+      m_Items: []
+  - m_Id: 32933334351872
+    m_Localized: The enemy used the card \"Mutual Destruction\".
+    m_Metadata:
+      m_Items: []
+  - m_Id: 33009242865664
+    m_Localized: You used the card \"Indestructible\".
+    m_Metadata:
+      m_Items: []
+  - m_Id: 33040352018432
+    m_Localized: The enemy used the card \"Indestructible\".
+    m_Metadata:
+      m_Items: []
+  - m_Id: 33095523893248
+    m_Localized: You used the card \"Double Action\".
+    m_Metadata:
+      m_Items: []
+  - m_Id: 33122166112256
+    m_Localized: The enemy used the card \"Double Action\".
+    m_Metadata:
+      m_Items: []
+  - m_Id: 34640558686208
+    m_Localized: 'Please select one of your pieces: Grant it \"Indestructible\" state
+      (1 turns)'
+    m_Metadata:
+      m_Items: []
+  - m_Id: 34604789661696
+    m_Localized: 'Please select one of your pieces: Grant it \"Mutual Destruction\"
+      state (1 turns)'
+    m_Metadata:
+      m_Items: []
+  - m_Id: 35265811972096
+    m_Localized: Please select your piece.
+    m_Metadata:
+      m_Items: []
+  - m_Id: 35755329191936
+    m_Localized: The opponent requested another round.
+    m_Metadata:
+      m_Items: []
+  - m_Id: 35803634991104
+    m_Localized: Message has been sent to the other player.
+    m_Metadata:
+      m_Items: []
+  - m_Id: 36737857486848
+    m_Localized: description
+    m_Metadata:
+      m_Items: []
+  - m_Id: 36989201154048
+    m_Localized: Another player has quit.
+    m_Metadata:
+      m_Items: []
+  - m_Id: 37261801553920
+    m_Localized: The host has logged out; the connection has ended.
+    m_Metadata:
+      m_Items: []
+  - m_Id: 52924435791872
+    m_Localized: Language
+    m_Metadata:
+      m_Items: []
+  references:
+    version: 2
+    RefIds: []

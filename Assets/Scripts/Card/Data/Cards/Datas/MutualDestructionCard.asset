@@ -12,8 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7edcb6a68e9120545ba90a09fa0115b2, type: 3}
   m_Name: MutualDestructionCard
   m_EditorClassIdentifier: Assembly-CSharp::MutualDestructionCard
-  cardName: MutualDestruction
+  cardNameKey: MutualDestruction_Name
   Id: 2
-  description: Grants a designated friendly piece an effect lasting one turn. When
-    that piece is captured, the opponent's piece that captured it is also captured.
-  image: {fileID: 0}
+  descriptionKey: MutualDestruction_Description

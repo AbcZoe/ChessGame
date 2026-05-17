@@ -351,7 +351,7 @@ public class PlayerInput : MonoBehaviour
         }
         else
         {
-            UIManager.Instance?.ShowMessage("Select your piece", 1.5f);
+            UIManager.Instance?.ShowMessage("SelectPiece_Msg", 1.5f);
         }
     }
 

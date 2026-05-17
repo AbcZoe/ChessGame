@@ -76,7 +76,7 @@ public class NGONetGame : NetworkBehaviour, NetInterface
         ulong sender = rpcParams.Receive.SenderClientId;
 
         // �u�b Host�]Server ���a�^���
-        UIManager.Instance?.ShowMessage("The opponent requested another round.", 2f);
+        UIManager.Instance?.ShowMessage("Request_ToHost", 2f);
     }
 
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]

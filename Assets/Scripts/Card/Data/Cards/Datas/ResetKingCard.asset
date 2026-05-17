@@ -12,6 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8095e9f2666bdac4383e8a7f4578eb48, type: 3}
   m_Name: ResetKingCard
   m_EditorClassIdentifier: Assembly-CSharp::ResetKingCard
-  cardName: ResetKing
-  description: You can reset your king piece
-  image: {fileID: 0}
+  cardNameKey: ResetKing_Name
+  Id: 0
+  descriptionKey: ResetKing_Description

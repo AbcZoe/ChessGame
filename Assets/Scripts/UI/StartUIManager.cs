@@ -23,6 +23,9 @@ public class StartUIManager : MonoBehaviour
     [SerializeField] private RoomListUI roomListUI;
     [SerializeField] private TMP_Text roomDataText;
 
+    [Header("Scene Data")]
+    [SerializeField] private GameObject SettingsPanel;
+
     [Header("Audio Data")]
     [SerializeField] private AudioData startUIAudioData;
     [SerializeField] private AudioData clickUIAudioData;
@@ -34,7 +37,6 @@ public class StartUIManager : MonoBehaviour
 
         if (ModePanel != null) ModePanel.SetActive(false);
         if (ConnectingPanel != null) ConnectingPanel.SetActive(false);
-
     }
 
     private void OnEnable()
@@ -76,6 +78,25 @@ public class StartUIManager : MonoBehaviour
     {
         if (roomDataText != null)
             roomDataText.text = "";
+    }
+
+    public void OnShowSettingsClicked()
+    {
+        AudioManager.Instance.PlaySFX(clickUIAudioData);
+        if (SettingsPanel != null)
+        {
+            SettingsPanel.SetActive(true);
+            UIEffect.Popup(SettingsPanel);
+        }
+    }
+
+    public void OnCloseSettingsPanel()
+    {
+        AudioManager.Instance.PlaySFX(clickUIAudioData);
+        if (SettingsPanel != null)
+        {
+            SettingsPanel.SetActive(false);
+        }
     }
 
     private void ShowModePanel()

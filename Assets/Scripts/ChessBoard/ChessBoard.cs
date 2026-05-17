@@ -124,26 +124,26 @@ public class ChessBoard : NetworkBehaviour
         switch (state)
         {
             case KingSelectionState.WhiteTeamSelecting:
-                GameManager.Instance?.ShowMessageToClient("Yellow Team, please select a piece as your King!", 0f, rpcParams);
+                GameManager.Instance?.ShowMessageToClient("ChoosePieceY", 0f, rpcParams);
                 break;
 
             case KingSelectionState.BlackTeamSelecting:
-                GameManager.Instance?.ShowMessageToClient("Purple Team, please select a piece as your King!", 0f, rpcParams);
+                GameManager.Instance?.ShowMessageToClient("ChoosePieceP", 0f, rpcParams);
                 break;
 
             case KingSelectionState.Completed:
-                GameManager.Instance?.ShowMessageToClient("Both teams have chosen their Kings. The game starts!", 2f, rpcParams);
+                GameManager.Instance?.ShowMessageToClient("ChooseDown", 2f, rpcParams);
                 UIManager.Instance?.ShowCurrentTurn(GameManager.Instance.CurrentTurnTeam);
                 break;
 
             case KingSelectionState.Reselecting:
                 if (GameManager.Instance.CurrentTurnTeam == 0)
                 {
-                    GameManager.Instance?.ShowMessageToClient($"Yellow Team, please select a new King!", 0f, rpcParams);
+                    GameManager.Instance?.ShowMessageToClient($"ChoosePieceY", 0f, rpcParams);
                 }
                 else if(GameManager.Instance.CurrentTurnTeam == 1)
                 {
-                    GameManager.Instance?.ShowMessageToClient($"Purple Team, please select a new King!", 0f, rpcParams);
+                    GameManager.Instance?.ShowMessageToClient($"ChoosePieceP", 0f, rpcParams);
                 }
                 break;
         }

@@ -75,7 +75,7 @@ public class QuitNotifier : NetworkBehaviour
         if (NetworkManager.Singleton != null && clientId != NetworkManager.Singleton.LocalClientId)
         {
             leaving = true;
-            UIManager.Instance?.ShowMessage("Another player has quit.", 2.0f);
+            UIManager.Instance?.ShowMessage("QuitMsg", 2.0f);
             UIManager.Instance?.ForceReturnToMenuAfterDelay(2.0f);
         }
     }
@@ -87,7 +87,7 @@ public class QuitNotifier : NetworkBehaviour
         if (leaving) return;
         leaving = true;
 
-        UIManager.Instance?.ShowMessage("Another player has quit.", 2.0f);
+        UIManager.Instance?.ShowMessage("QuitMsg", 2.0f);
         UIManager.Instance?.ForceReturnToMenuAfterDelay(2.0f);
     }
 
@@ -98,7 +98,7 @@ public class QuitNotifier : NetworkBehaviour
         if (leaving) return;
         leaving = true;
 
-        UIManager.Instance?.ShowMessage("The host has logged out; the connection has ended.", 2.0f);
+        UIManager.Instance?.ShowMessage("HostQuitMsg", 2.0f);
         UIManager.Instance?.ForceReturnToMenuAfterDelay(2.0f);
     }
 }

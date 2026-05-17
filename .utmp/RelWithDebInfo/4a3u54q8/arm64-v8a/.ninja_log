@@ -1,10 +1,19 @@
 # ninja log v5
 43	1571	7988924961564226	GameActivity/CMakeFiles/game.dir/UGAEntry.cpp.o	85a12bd4bc666c2f
 34	1584	7988924961564226	GameActivity/CMakeFiles/game.dir/UGAInputKeyEvent.cpp.o	4d9f4352f3d2bd78
-25	1615	7988924962021870	GameActivity/CMakeFiles/game.dir/UGAConfiguration.cpp.o	53dab3b106060fa
-71	1617	7988924962011818	GameActivity/CMakeFiles/game.dir/UGAInputMotionEvent.cpp.o	a29a8f6af2f6e7ba
-17	1667	7988924962557353	GameActivity/CMakeFiles/game.dir/UGADebug.cpp.o	be980dfef7dafb3a
-53	1876	7988924964645226	GameActivity/CMakeFiles/game.dir/UGAInput.cpp.o	4c5cf65ef22d3843
-62	1911	7988924964978400	GameActivity/CMakeFiles/game.dir/UGASoftKeyboard.cpp.o	445cb4ae90032f1b
-1	2014	7988924965843383	GameActivity/CMakeFiles/game.dir/UGAApplication.cpp.o	30dc643defe4fd51
 2014	2179	7988924967711867	C:/Users/Zoe/Documents/GitHub/ChessGame/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/build/intermediates/cxx/RelWithDebInfo/4a3u54q8/obj/arm64-v8a/libgame.so	e36d4d369d54b8fc
+62	1911	7988924964978400	GameActivity/CMakeFiles/game.dir/UGASoftKeyboard.cpp.o	445cb4ae90032f1b
+25	1615	7988924962021870	GameActivity/CMakeFiles/game.dir/UGAConfiguration.cpp.o	53dab3b106060fa
+17	1667	7988924962557353	GameActivity/CMakeFiles/game.dir/UGADebug.cpp.o	be980dfef7dafb3a
+71	1617	7988924962011818	GameActivity/CMakeFiles/game.dir/UGAInputMotionEvent.cpp.o	a29a8f6af2f6e7ba
+53	1876	7988924964645226	GameActivity/CMakeFiles/game.dir/UGAInput.cpp.o	4c5cf65ef22d3843
+1	2014	7988924965843383	GameActivity/CMakeFiles/game.dir/UGAApplication.cpp.o	30dc643defe4fd51
+21	1300	8007264799856880	GameActivity/CMakeFiles/game.dir/UGAEntry.cpp.o	85a12bd4bc666c2f
+41	1303	8007264799856880	GameActivity/CMakeFiles/game.dir/UGAInputKeyEvent.cpp.o	4d9f4352f3d2bd78
+16	1333	8007264800052570	GameActivity/CMakeFiles/game.dir/UGAConfiguration.cpp.o	53dab3b106060fa
+48	1385	8007264800696870	GameActivity/CMakeFiles/game.dir/UGAInputMotionEvent.cpp.o	a29a8f6af2f6e7ba
+27	1465	8007264801464550	GameActivity/CMakeFiles/game.dir/UGADebug.cpp.o	be980dfef7dafb3a
+55	1645	8007264803331552	GameActivity/CMakeFiles/game.dir/UGASoftKeyboard.cpp.o	445cb4ae90032f1b
+34	1662	8007264803498077	GameActivity/CMakeFiles/game.dir/UGAInput.cpp.o	4c5cf65ef22d3843
+10	1783	8007264804663804	GameActivity/CMakeFiles/game.dir/UGAApplication.cpp.o	30dc643defe4fd51
+1783	1985	8007264806733378	C:/Users/Zoe/Documents/GitHub/ChessGame/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/build/intermediates/cxx/RelWithDebInfo/4a3u54q8/obj/arm64-v8a/libgame.so	e36d4d369d54b8fc

@@ -12,15 +12,15 @@ public static class CardServerExecutor
             case 0: // ResetKingCard
                 {
                     KingManager.Instance.HandleResetKingSelection_Server(casterTeam);
-                    GameManager.Instance.ShowMessageToClient("You used the card \"Reset King\".", 2f, senderClientId);
-                    GameManager.Instance.ShowMessageToOthers("The enemy used the card \"Reset King\".", 2f, senderClientId);
+                    GameManager.Instance.ShowMessageToClient("Reset King_ToClient", 2f, senderClientId);
+                    GameManager.Instance.ShowMessageToOthers("Reset King_ToOthers", 2f, senderClientId);
                     return false;  // 這張卡不會結束行動，因為它需要對方重新選王，等對方選完王才結束行動
                 }
 
             case 1: // NothingCard
                 {
-                    GameManager.Instance.ShowMessageToClient("You used the card \"Nothing Happend\".", 2f, senderClientId);
-                    GameManager.Instance.ShowMessageToOthers("The enemy used the card \"Nothing Happend\".", 2f, senderClientId);
+                    GameManager.Instance.ShowMessageToClient("Nothing Happend_ToClient", 2f, senderClientId);
+                    GameManager.Instance.ShowMessageToOthers("Nothing Happend_ToOthers", 2f, senderClientId);
                     return true;
                 }
 
@@ -30,8 +30,8 @@ public static class CardServerExecutor
                     if (!TryGetPiece(targetPieceNetId.Value, out var piece)) return false;
 
                     piece.ApplyMutualDestructionServer(2);
-                    GameManager.Instance.ShowMessageToClient("You used the card \"Mutual Destruction\".", 2f, senderClientId);
-                    GameManager.Instance.ShowMessageToOthers("The enemy used the card \"Mutual Destruction\".", 2f, senderClientId);
+                    GameManager.Instance.ShowMessageToClient("Mutual Destruction_ToClient", 2f, senderClientId);
+                    GameManager.Instance.ShowMessageToOthers("Mutual Destruction_ToOthers", 2f, senderClientId);
                     return true;
                 }
 
@@ -41,16 +41,16 @@ public static class CardServerExecutor
                     if (!TryGetPiece(targetPieceNetId.Value, out var piece)) return false;
 
                     piece.ApplyIndestructibleServer(2);
-                    GameManager.Instance.ShowMessageToClient("You used the card \"Indestructible\".", 2f, senderClientId);
-                    GameManager.Instance.ShowMessageToOthers("The enemy used the card \"Indestructible\".", 2f, senderClientId);
+                    GameManager.Instance.ShowMessageToClient("Indestructible_toClient", 2f, senderClientId);
+                    GameManager.Instance.ShowMessageToOthers("Indestructible_ToOthers", 2f, senderClientId);
                     return true;
                 }
 
             case 4: // DoubleActionCard
                 { 
                 GameManager.Instance.GrantExtraActionServer(1);
-                GameManager.Instance.ShowMessageToClient("You used the card \"Double Action\".", 2f, senderClientId);
-                GameManager.Instance.ShowMessageToOthers("The enemy used the card \"Double Action\".", 2f, senderClientId);
+                GameManager.Instance.ShowMessageToClient("Double Action_ToClient", 2f, senderClientId);
+                GameManager.Instance.ShowMessageToOthers("Double Action_ToOthers", 2f, senderClientId);
                 return false;
                 }
 

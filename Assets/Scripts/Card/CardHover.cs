@@ -107,7 +107,7 @@ public class CardHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     public void OnPointerEnter(PointerEventData eventData)
     {
         if (PlayerInput.Instance != null && cardView.OwnerTeam == PlayerInput.Instance.PlayerTeam)
-            UIManager.Instance.ShowCardDescription(cardView.CardName, cardView.Description);
+            UIManager.Instance.ShowCardDescription(cardView.CardNameKey, cardView.DescriptionKey);
     }
 
     public void OnPointerExit(PointerEventData eventData)

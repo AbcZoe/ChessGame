@@ -1,5 +1,7 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.Localization.Settings;
 
 public class CardView : MonoBehaviour
 {
@@ -12,8 +14,9 @@ public class CardView : MonoBehaviour
     // 新增：同一張「手牌實體」在所有 Client 的共同識別
     public int CardInstanceId { get; set; } = -1;
 
-    public string CardName => Data != null ? Data.cardName : "";
-    public string Description => Data != null ? Data.description : "";
+    // 回傳 localization key
+    public string CardNameKey => Data != null ? Data.cardNameKey : "";
+    public string DescriptionKey => Data != null ? Data.descriptionKey : "";
 
     public void ResetCard()
     {
@@ -27,7 +30,9 @@ public class CardView : MonoBehaviour
     {
         Data = data;
         OwnerTeam = ownerTeam;
-        Title.text = data.cardName;
+
+        // Localization
+        Title.text = LocalizationSettings.StringDatabase.GetLocalizedString("UI_Text", data.cardNameKey);
     }
 
     // 使用卡牌功能

@@ -5,6 +5,8 @@ using UnityEngine.SceneManagement;
 using System;
 using UnityEngine.UI;
 using System.Threading.Tasks;
+using UnityEngine.Localization;
+using UnityEngine.Localization.Settings;
 
 public enum PromotionType
 {
@@ -71,17 +73,21 @@ public class UIManager : MonoBehaviour
         return cg;
     }
 
+    private string GetLoc(string key)
+    {
+        return LocalizationSettings.StringDatabase.GetLocalizedString("UI_Text", key);
+    }
+
     // ===== 短暫訊息 =====
-    public void ShowMessage(string text, float autoHideTime = 0f)
+    public void ShowMessage(string key, float autoHideTime = 0f)
     {
         AudioManager.Instance.PlaySFX(messageUIAudioData);
         if (messagePanel == null || messageText == null) return;
 
-        messageText.text = text;
+        messageText.text = GetLoc(key);
 
         messagePanel.SetActive(true);
 
-        // 重置狀態（避免動畫殘留）
         messagePanel.transform.localScale = Vector3.zero;
         messageCanvasGroup.alpha = 0f;
 
@@ -89,12 +95,7 @@ public class UIManager : MonoBehaviour
         UIEffect.FadeIn(messageCanvasGroup);
 
         if (autoHideTime > 0f)
-        {
-            DOVirtual.DelayedCall(autoHideTime, () =>
-            {
-                HideMessage();
-            });
-        }
+            DOVirtual.DelayedCall(autoHideTime, HideMessage);
     }
 
     public void HideMessage()
@@ -112,13 +113,9 @@ public class UIManager : MonoBehaviour
     public void ShowCurrentTurn(int team)
     {
         if (roundText == null) return;
-        if (team == 0)
-        {
-            roundText.text = $"Round:Yellow Team";
-        }else if (team == 1)
-        {
-            roundText.text = $"Round:Purple Team";
-        }
+
+        string key = team == 0 ? "round_yellow" : "round_purple";
+        roundText.text = GetLoc(key);
 
         ShowRoundChange(1f);
     }
@@ -134,17 +131,15 @@ public class UIManager : MonoBehaviour
         if (roundText_inchange == null || RoundChangePanel == null) return;
 
         AudioManager.Instance.PlaySFX(messageUIAudioData);
-        roundText_inchange.text = roundText.text; // 顯示同樣的回合資訊
+
+        roundText_inchange.text = roundText.text;
+
         RoundChangePanel.SetActive(true);
 
         UIEffect.Popup(RoundChangePanel);
+
         if (autoHideTime > 0f)
-        {
-            DOVirtual.DelayedCall(autoHideTime, () =>
-            {
-                HideRoundChange();
-            });
-        }
+            DOVirtual.DelayedCall(autoHideTime, HideRoundChange);
     }
 
     public void HideRoundChange()
@@ -196,22 +191,19 @@ public class UIManager : MonoBehaviour
     public void ShowVictory(int winnerTeam)
     {
         if (victoryPanel == null || victoryText == null) return;
-        if(winnerTeam == 2)
-            victoryText.text = $"Draw!!!";
-        else
-            if (winnerTeam == 0)
-                victoryText.text = $"Yellow Team Wins!";
-            else if (winnerTeam == 1)
-                victoryText.text = $"Purple Team Wins!";
-        UIEffect.Breathe(victoryText.rectTransform, scaleFactor: 1.1f, duration: 1f);
 
-        // 顯示面板
+        string key =
+            winnerTeam == 2 ? "draw" :
+            winnerTeam == 0 ? "victory_yellow" :
+            "victory_purple";
+
+        victoryText.text = GetLoc(key);
+
+        UIEffect.Breathe(victoryText.rectTransform, 1.1f, 1f);
+
         victoryPanel.SetActive(true);
-
-        // 先 Popup 整個 VictoryScreen
         UIEffect.Popup(victoryPanel);
 
-        // 按鈕慢慢放大
         if (resetButton != null) UIEffect.ButtonPopup(resetButton, 0.6f);
         if (exitButton != null) UIEffect.ButtonPopup(exitButton, 0.6f);
     }
@@ -230,14 +222,16 @@ public class UIManager : MonoBehaviour
     }
 
     // ===== 卡片說明 =====
-    public void ShowCardDescription(string name, string description)
+    public void ShowCardDescription(string nameKey, string descKey)
     {
-        Debug.Log("Show Card");
-        Debug.Log(cardDescription);
         if (cardDescription != null)
         {
-            string x = name +
-                "\ndescription:\n" + description;
+            string x =
+                GetLoc(nameKey) +
+                "\n" +
+                GetLoc("description") + ":\n" +
+                GetLoc(descKey);
+
             cardDescription.text = x;
         }
     }
@@ -300,7 +294,8 @@ public class UIManager : MonoBehaviour
 
         // Client：送訊息給 Host，不重置
         Services.NetInterface?.RequestRematch();
-        ShowMessage("Message has been sent to the other player.", 2f);
+        // 提示訊息已發送
+        ShowMessage("Request_Client", 2f);
     }
 
     public void OnQuitButton()

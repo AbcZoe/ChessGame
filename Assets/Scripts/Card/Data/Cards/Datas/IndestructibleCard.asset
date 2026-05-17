@@ -12,7 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a542bf46235f1a4b85a52019fee71d2, type: 3}
   m_Name: IndestructibleCard
   m_EditorClassIdentifier: Assembly-CSharp::IndestructibleCard
-  cardName: Indestructible
+  cardNameKey: Indestructible_Name
   Id: 3
-  description: Make one of our designated pieces unable to be captured for one turn.
-  image: {fileID: 0}
+  descriptionKey: Indestructible_Description

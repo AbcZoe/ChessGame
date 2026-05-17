@@ -12,7 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 411c91d18b4565443b5e5b072270261c, type: 3}
   m_Name: NothingCard
   m_EditorClassIdentifier: Assembly-CSharp::TestCard
-  cardName: NothingHappend
+  cardNameKey: NothingHappend_Name
   Id: 1
-  description: Nothing happend ...
-  image: {fileID: 0}
+  descriptionKey: NothingHappend_Description
