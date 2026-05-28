@@ -516,7 +516,7 @@ MonoBehaviour:
   m_text: New Text
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 1e1df522061010e4191bce8d620e13ac, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_sharedMaterial: {fileID: -149519055320225197, guid: 1e1df522061010e4191bce8d620e13ac, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -1474,7 +1474,7 @@ MonoBehaviour:
   m_text: Quit
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 1e1df522061010e4191bce8d620e13ac, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_sharedMaterial: {fileID: -149519055320225197, guid: 1e1df522061010e4191bce8d620e13ac, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -2346,10 +2346,10 @@ RectTransform:
   m_Children:
   - {fileID: 1387596063}
   - {fileID: 550289097}
-  - {fileID: 285576554}
   - {fileID: 1564314516}
   - {fileID: 1803721647}
   - {fileID: 788349673}
+  - {fileID: 285576554}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -5637,7 +5637,7 @@ MonoBehaviour:
   m_text: test
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 1e1df522061010e4191bce8d620e13ac, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_sharedMaterial: {fileID: -149519055320225197, guid: 1e1df522061010e4191bce8d620e13ac, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -6404,7 +6404,7 @@ MonoBehaviour:
   m_text: Reset
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 1e1df522061010e4191bce8d620e13ac, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_sharedMaterial: {fileID: -149519055320225197, guid: 1e1df522061010e4191bce8d620e13ac, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []

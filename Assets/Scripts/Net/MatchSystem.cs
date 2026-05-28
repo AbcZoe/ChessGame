@@ -469,6 +469,7 @@ public class MatchSystem : MonoBehaviour
 
         if (!ok)
         {
+            OnRoomCreated?.Invoke("Room creation failed. Please cancel and try again.");
             throw new Exception("StartHost Failed");
         }
 
