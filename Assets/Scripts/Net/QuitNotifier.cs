@@ -60,7 +60,7 @@ public class QuitNotifier : NetworkBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogWarning($"Quit Error: {e.Message}");
+            
         }
 
         UIManager.Instance?.ReturnToMenuAsync();

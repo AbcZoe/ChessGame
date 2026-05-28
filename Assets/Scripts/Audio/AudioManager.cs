@@ -19,10 +19,15 @@ public class AudioManager : PersistentSingleton<AudioManager>
     {
         base.Awake();
 
-        // 載入音量
-        masterVolume = PlayerPrefs.GetFloat("MasterVolume", 1f);
-        sfxVolume = PlayerPrefs.GetFloat("SFXVolume", 1f);
-        bgmVolume = PlayerPrefs.GetFloat("BGMVolume", 1f);
+        // 載入音量(根據上次關閉遊戲前的音量，是讀檔案的)
+        //masterVolume = PlayerPrefs.GetFloat("MasterVolume", 1f);
+        //sfxVolume = PlayerPrefs.GetFloat("SFXVolume", 1f);
+        //bgmVolume = PlayerPrefs.GetFloat("BGMVolume", 1f);
+
+        // 開啟遊戲時音量固定為1f
+        masterVolume = 1f;
+        sfxVolume = 1f;
+        bgmVolume = 1f;
 
         ApplyVolumes();
     }
@@ -51,6 +56,8 @@ public class AudioManager : PersistentSingleton<AudioManager>
     {
         masterVolume = value;
 
+        //PlayerPrefs 是 Unity 內建提供的一個「本地簡單資料儲存系統」，存進去後，下次打開遊戲還能讀出來。。
+        //可以讓你很方便地在玩家裝置上儲存和讀取簡單的數據。
         PlayerPrefs.SetFloat("MasterVolume", value);
 
         ApplyVolumes();

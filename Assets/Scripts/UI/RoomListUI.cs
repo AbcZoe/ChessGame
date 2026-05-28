@@ -65,7 +65,7 @@ public class RoomListUI : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogError($"Join Lobby Failed: {e}");
+            
         }
     }
 

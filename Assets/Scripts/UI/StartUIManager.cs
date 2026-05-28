@@ -144,7 +144,7 @@ public class StartUIManager : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogError(e);
+            
         }
     }
 
@@ -163,7 +163,7 @@ public class StartUIManager : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogError(e);
+            
         }
     }
 
@@ -183,7 +183,7 @@ public class StartUIManager : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogError(e);
+            
         }
     }
 

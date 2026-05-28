@@ -119,7 +119,7 @@ public class MatchSystem : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogError($"[MatchSystem] Init Failed: {e}");
+            
             isReady = false;
         }
     }
@@ -132,7 +132,7 @@ public class MatchSystem : MonoBehaviour
     {
         CurrentState = state;
 
-        Debug.Log($"[MatchSystem] State => {state}");
+        
 
         OnStateChanged?.Invoke(state);
     }
@@ -170,7 +170,7 @@ public class MatchSystem : MonoBehaviour
             }
             catch (Exception e)
             {
-                Debug.LogWarning($"[MatchSystem] LobbyRefreshLoop Error: {e.Message}");
+                
             }
         }
     }
@@ -206,7 +206,7 @@ public class MatchSystem : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogWarning($"[MatchSystem] RefreshLobby Failed: {e.Message}");
+            
         }
     }
 
@@ -240,7 +240,7 @@ public class MatchSystem : MonoBehaviour
     {
         if (NetworkManager.Singleton == null)
         {
-            Debug.LogWarning("[MatchSystem] NetworkManager.Singleton Missing");
+            
             return;
         }
 
@@ -267,8 +267,8 @@ public class MatchSystem : MonoBehaviour
             int count =
                 NetworkManager.Singleton.ConnectedClients.Count;
 
-            Debug.Log($"[MatchSystem] Client Connected: {clientId}");
-            Debug.Log($"[MatchSystem] Player Count: {count}/2");
+            
+            
 
             if (!hasLoadedGameScene && count == 2)
             {
@@ -278,7 +278,7 @@ public class MatchSystem : MonoBehaviour
 
                 await SetLobbyState("ingame");
 
-                Debug.Log("[MatchSystem] Loading GameScene...");
+                
 
                 NetworkManager.Singleton.SceneManager.LoadScene(
                     "GameScene",
@@ -289,7 +289,7 @@ public class MatchSystem : MonoBehaviour
 
     private void OnClientDisconnected(ulong clientId)
     {
-        Debug.LogWarning($"[MatchSystem] Client Disconnected: {clientId}");
+        
 
         if (NetworkManager.Singleton != null &&
             NetworkManager.Singleton.IsClient &&
@@ -307,38 +307,38 @@ public class MatchSystem : MonoBehaviour
     {
         if (!isReady)
         {
-            Debug.LogWarning("[QuickMatch] Not ready yet");
+            
             return;
         }
 
         if (UnityServices.State != ServicesInitializationState.Initialized)
         {
-            Debug.LogWarning("[QuickMatch] Services not initialized. Re-initializing...");
+            
             await UnityServices.InitializeAsync();
         }
 
         if (!AuthenticationService.Instance.IsSignedIn)
         {
-            Debug.LogWarning("[QuickMatch] Not signed in. Signing in...");
+            
             await AuthenticationService.Instance.SignInAnonymouslyAsync();
         }
 
         if (CurrentState != MatchState.Idle)
         {
-            Debug.LogWarning($"[MatchSystem] Current State: {CurrentState}");
+            
             return;
         }
 
         SetState(MatchState.Matching);
         if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
         {
-            Debug.LogWarning("[配對系統] 偵測到目前仍在連線中，先執行清理再重新配對...");
+            
             await DisconnectAndCleanup();
         }
 
         try
         {
-            Debug.Log("[配對系統] 開始 QuickMatch：查詢可加入房間...");
+            
 
             var queryOptions = new QueryLobbiesOptions
             {
@@ -351,37 +351,37 @@ public class MatchSystem : MonoBehaviour
             };
 
             var query = await LobbyService.Instance.QueryLobbiesAsync(queryOptions);
-            Debug.Log($"[配對系統] 查詢完成，可加入房間數量={query.Results.Count}");
+            
 
             if (query.Results.Count > 0)
             {
                 var target = query.Results[0];
-                Debug.Log($"[配對系統] 找到房間，嘗試加入 LobbyId={target.Id} Name={target.Name}");
+                
 
                 currentLobby = await LobbyService.Instance.JoinLobbyByIdAsync(target.Id);
                 OnLobbyListChanged?.Invoke(); // 通知 UI 刷新房間列表（如果有的話）
                 isHostLobbyOwner = false;
 
-                Debug.Log($"[配對系統] 加入 Lobby 成功 LobbyId={currentLobby.Id} OwnerId={currentLobby.HostId}");
+                
 
                 if (!currentLobby.Data.ContainsKey("joinCode"))
                     throw new Exception("[配對系統] Lobby 資料缺少 joinCode，無法加入 Relay");
 
                 string joinCode = currentLobby.Data["joinCode"].Value;
-                Debug.Log($"[配對系統] 取得 joinCode 成功：{joinCode}，開始加入 Relay...");
+                
 
                 await JoinRelay(joinCode);
 
-                Debug.Log("[配對系統] 已呼叫 StartClient()，等待 NGO 連線成功事件...");
+                
                 return;
             }
 
-            Debug.Log("[配對系統] 沒有可加入房間，改為建立 Lobby + Relay 並成為 Host");
+            
             await CreateLobbyAndHost();
         }
         catch (Exception e)
         {
-            Debug.LogError($"[配對系統] QuickMatch 失敗：{e}");
+            
         }
     }
 
@@ -404,7 +404,7 @@ public class MatchSystem : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogError($"[MatchSystem] HostGame Failed: {e}");
+            
 
             SetState(MatchState.Idle);
         }
@@ -473,7 +473,7 @@ public class MatchSystem : MonoBehaviour
             throw new Exception("StartHost Failed");
         }
 
-        Debug.Log("[MatchSystem] Host Started");
+        
     }
 
     #endregion
@@ -491,7 +491,7 @@ public class MatchSystem : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogError($"[MatchSystem] JoinLobbyById Failed: {e}");
+            
         }
     }
 
@@ -506,7 +506,7 @@ public class MatchSystem : MonoBehaviour
 
         string joinCode = lobby.Data["joinCode"].Value;
 
-        Debug.Log($"[MatchSystem] JoinCode OK: {joinCode}");
+        
 
         await JoinRelay(joinCode);
     }
@@ -590,7 +590,7 @@ public class MatchSystem : MonoBehaviour
             }
             catch (Exception e)
             {
-                Debug.LogWarning($"[MatchSystem] Heartbeat Failed: {e.Message}");
+                
             }
         }
     }
@@ -615,7 +615,7 @@ public class MatchSystem : MonoBehaviour
     {
         if (isCleaning)
         {
-            Debug.LogWarning("[MatchSystem] Already Cleaning");
+            
             return;
         }
 
@@ -637,7 +637,7 @@ public class MatchSystem : MonoBehaviour
             }
             catch (Exception e)
             {
-                Debug.LogWarning($"[MatchSystem] Shutdown Failed: {e.Message}");
+                
             }
 
             try
@@ -663,7 +663,7 @@ public class MatchSystem : MonoBehaviour
             }
             catch (Exception e)
             {
-                Debug.LogWarning($"[MatchSystem] Lobby Cleanup Failed: {e.Message}");
+                
             }
 
             currentLobby = null;
@@ -676,7 +676,7 @@ public class MatchSystem : MonoBehaviour
 
             OnLobbyListChanged?.Invoke();
 
-            Debug.Log("[MatchSystem] Cleanup Complete");
+            
         }
         finally
         {
@@ -715,7 +715,7 @@ public class MatchSystem : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogWarning($"[MatchSystem] SetLobbyState Failed: {e.Message}");
+            
         }
     }
 

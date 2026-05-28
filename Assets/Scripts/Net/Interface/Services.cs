@@ -10,7 +10,7 @@ public static class Services
     {
         if (impl == null)
         {
-            Debug.LogError("NetInterface cannot be null!");
+            
             return;
         }
 

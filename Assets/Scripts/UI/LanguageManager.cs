@@ -47,7 +47,7 @@ public class LanguageManager : MonoBehaviour
 
         if (locale == null)
         {
-            Debug.LogWarning($"Locale not found: {code}");
+            
             return;
         }
 

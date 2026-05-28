@@ -69,7 +69,7 @@ public class GameManager : NetworkBehaviour
     {
         if (NetworkManager.Singleton.LocalClientId != clientId) return;
         LocalTeam = team;
-        Debug.Log($"我是 Client {clientId}，我的隊伍是 {team}");
+        
 
         PlayerInput playerInput = FindAnyObjectByType<PlayerInput>();
         playerInput.Initialize(ChessBoard.Instance, tileHighlighter, team);
@@ -151,7 +151,7 @@ public class GameManager : NetworkBehaviour
         if (tileHighlighter != null)
             tileHighlighter.HighlightTilesFromServer(moves, attacks);
 
-        Debug.Log($"[Client {NetworkManager.Singleton.LocalClientId}] ReceiveHighlight moves={movesPacked?.Length ?? 0} attacks={attacksPacked?.Length ?? 0}");
+        
     }
     #endregion
 
@@ -165,7 +165,7 @@ public class GameManager : NetworkBehaviour
             if (ExtraActionsLeft.Value > 0)
             {
                 ExtraActionsLeft.Value--;
-                Debug.Log($"Extra action consumed, remaining={ExtraActionsLeft.Value}. Team keeps turn: {CurrentTurnTeam}");
+                
                 return;
             }
 
@@ -174,7 +174,7 @@ public class GameManager : NetworkBehaviour
                 piece.TickStatusOnTurnSwitchServer();
 
             isWhiteTeamTurn.Value = !isWhiteTeamTurn.Value;
-            Debug.Log($"Server 切換回合: {CurrentTurnTeam}");
+            
         }
         else
         {

@@ -201,6 +201,7 @@ public class UIManager : MonoBehaviour
 
         UIEffect.Breathe(victoryText.rectTransform, 1.1f, 1f);
 
+
         victoryPanel.SetActive(true);
         UIEffect.Popup(victoryPanel);
 
@@ -286,7 +287,8 @@ public class UIManager : MonoBehaviour
             ChessBoard board = FindAnyObjectByType<ChessBoard>();
             if (board != null)
             {
-                Debug.Log("Resetting Game...");
+                HidePromotionOptions();
+                GameManager.Instance.SetPauseServerRpc(false);
                 board.ResetBoard();
             }
             return;
